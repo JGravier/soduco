@@ -1,0 +1,9 @@
+@data{DVN/CCESX4_2019,
+author = {GeoHistoricalData},
+publisher = {Harvard Dataverse},
+title = {{``Verniquet map'' and "Jacoubet Atlas" Paris street networks}},
+year = {2019},
+version = {V1},
+doi = {10.7910/DVN/CCESX4},
+url = {https://doi.org/10.7910/DVN/CCESX4}
+}

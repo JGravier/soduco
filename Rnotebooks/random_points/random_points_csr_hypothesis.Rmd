@@ -1,0 +1,175 @@
+---
+title: "Creation of random points on network with CSR hypothesis"
+output:
+  html_document:
+    df_print: paged
+---
+
+**Objectives:** notes on creation of *n* random points on a spatial network
+<br>
+**Main reference**: Okabe (Atsuyuki) & Sugihara (Kokichi), *Spatial Analysis along Networks. Statistical and Computational Methods*, 2012, John Wiley & Sons, Ltd, UK, chapter 2
+<br>
+<br>
+
+### Libraries and data
+```{r message = FALSE}
+library(tidyverse)
+library(sf)
+library(maptools)
+library(sp)
+library(spatstat.data)
+library(spatstat.geom)
+library(spatstat.core)
+library(nlme)
+library(spatstat.linnet)
+library(ggspatial)
+library(ggthemes)
+
+reseau_jacoubet <- st_read(dsn = "data_Jacoubet/jacoubet_1825_1837_crs_2154.shp")
+```
+<br>
+
+### Steps in creation of n random points on a network
+
+We consider, as Okabe and Sugihara, *n* points generated on a network space *L* according to the homogeneous binomial point process. Then, the probability of a point being placed on arbitrary subnetwork *Ls* of *L* depends on the length of *Ls* and only length.
+
+```{r}
+# adding length on network
+reseau_jacoubet <- reseau_jacoubet %>%
+  mutate(length = as.numeric(round(x = st_length(x = .), digits = 2)))
+
+# visu of length differences on network
+ggplot() +
+  geom_sf(data = reseau_jacoubet, aes(color = length), size = 0.7) +
+  scale_color_distiller(palette = "Spectral") +
+  ggspatial::annotation_scale(location = "tr",  width_hint = 0.2) +
+  ggthemes::theme_igray() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  ggtitle("Length of Ls on Jacoubet network")
+```
+<br>
+```{r}
+# probability depending on length of Ls
+proba <- as.numeric(reseau_jacoubet$length/sum(reseau_jacoubet$length))
+
+# sampling depending on this probability
+random_sample_csr <- sample(x = reseau_jacoubet$fid, 
+                            size = 100, # n = 100 points
+                            replace = TRUE, prob = proba)
+
+# table of the random sample
+table_rss_csr <- reseau_jacoubet %>%
+  left_join(enframe(random_sample_csr) %>% 
+              group_by(fid = value) %>% 
+              count() %>% 
+              ungroup(), 
+            by = "fid") %>%
+  mutate(n = replace_na(data = n, replace = 0)) %>%
+  filter(n > 0)
+
+table_rss_csr %>%
+  select(fid, length, n) %>%
+  head()
+
+# spatial sampling depending on table of random sample
+result_point_rss_csr <- st_sample(x = table_rss_csr, size = table_rss_csr$n) # an sfc object as multipoint
+
+# transformation as sf object, geometry as points
+result_point_rss_csr <- result_point_rss_csr %>%
+  st_as_sf(.) %>%
+  st_cast(x = ., to = "POINT")
+
+```
+
+<br>
+
+#### Data visualization of random point pattern
+
+With *n* = 100
+```{r}
+# visu
+ggplot() +
+  geom_sf(data = reseau_jacoubet, aes(color = length), size = 0.7) +
+  scale_color_distiller(palette = "Spectral") +
+  geom_sf(data = result_point_rss_csr, color = "grey20", alpha = 0.7) +
+  ggspatial::annotation_scale(location = "tr",  width_hint = 0.2) +
+  ggthemes::theme_igray() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  ggtitle("Random point pattern on Jacoubet network")
+```
+<br>
+
+### Fastest algorithms
+
+The algorithms presented are quite slow as soon as the number of points to generate and the number of simulations are increased. It is much more relevant to use the functions of the package spatstat.linnet, designed to study points on a linear network.
+```{r}
+# creation of a linear network (object of class "linnet")
+linnet_jacoubet <- maptools::as.linnet.SpatialLines(X = 
+                                                      as(reseau_jacoubet, "Spatial") # first: transform sf as SpatialLinesDataFrame
+                                                    )
+
+# creation of random spatial sampling with CSR hypothesis
+liste_rss_csr <- runiflpp(n = 100, # number of points n 
+                          L = linnet_jacoubet, 
+                          nsim = 50) # 50 simulations of sampling
+
+head(liste_rss_csr)
+
+```
+
+We obtain lists of point pattern on linear network. Each list correspond to a simulation. We obviously can extract those simulations to obtain an object of class sf to visualize random point patterns.
+```{r}
+# first extraction
+extract_list_rss_csr <- lapply(liste_rss_csr, `[[`, c("data")) # get table
+
+# extract in loop: each of table in a tibble
+result_point_rss_csr_sim <- tibble(x = as.double(), y = as.double(), seg = as.numeric(), tp = as.double())
+
+for (i in 1:length(extract_list_rss_csr)) {
+  tableau <- as.data.frame(extract_list_rss_csr[[i]])
+  colnames(x = tableau) <- c("x", "y", "seg", "tp")
+  tableau <- tableau %>%
+    as_tibble(.) %>%
+    mutate(sim = i)
+
+  result_point_rss_csr_sim <- result_point_rss_csr_sim %>%
+    bind_rows(tableau)
+
+}
+
+result_point_rss_csr_sim_sf <- st_as_sf(x = result_point_rss_csr_sim, crs = 2154, coords = c("x", "y"))
+head(result_point_rss_csr_sim_sf)
+```
+<br>
+
+#### Data visualization of 50 simulations of random point pattern
+
+With *n* = 100 for each simulation
+
+```{r}
+# visu
+ggplot() +
+  geom_sf(data = reseau_jacoubet, size = 0.7) +
+  geom_sf(data = result_point_rss_csr_sim_sf, color = "grey20", alpha = 0.7) +
+  ggspatial::annotation_scale(location = "tr",  width_hint = 0.2) +
+  ggthemes::theme_igray() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  ggtitle("Random point patterns on Jacoubet network") +
+  facet_wrap(~sim)
+```
+
+
+
+
