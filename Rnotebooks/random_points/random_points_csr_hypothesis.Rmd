@@ -130,7 +130,7 @@ We obtain lists of point pattern on linear network. Each list correspond to a si
 # first extraction
 extract_list_rss_csr <- lapply(liste_rss_csr, `[[`, c("data")) # get table
 
-# extract in loop: each of table in a tibble
+# extract in loop: each table in one tibble
 result_point_rss_csr_sim <- tibble(x = as.double(), y = as.double(), seg = as.numeric(), tp = as.double())
 
 for (i in 1:length(extract_list_rss_csr)) {
@@ -154,11 +154,11 @@ head(result_point_rss_csr_sim_sf)
 
 With *n* = 100 for each simulation
 
-```{r}
+```{r, fig.width = 30, fig.height = 30}
 # visu
 ggplot() +
-  geom_sf(data = reseau_jacoubet, size = 0.7) +
-  geom_sf(data = result_point_rss_csr_sim_sf, color = "grey20", alpha = 0.7) +
+  geom_sf(data = reseau_jacoubet, color = "grey80", size = 0.7) +
+  geom_sf(data = result_point_rss_csr_sim_sf, color = "red", alpha = 0.7) +
   ggspatial::annotation_scale(location = "tr",  width_hint = 0.2) +
   ggthemes::theme_igray() +
   theme(axis.text.x = element_blank(),
