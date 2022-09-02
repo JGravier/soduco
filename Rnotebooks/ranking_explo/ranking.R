@@ -97,6 +97,39 @@ rank_diversity %>%
 #### tradeve database ####
 tradeve <- read_excel(path = "ranking_exploration/TRADEVE_database/TRADEVE_UrbanAreas_Data.xlsx", sheet = "UrbanAreas_Data")
 
+#### dt de Batty 2006 ####
+dt_tradeve <- dk_countries_tradeve %>%
+  mutate(di_1961_1971 = di_t(xt = rang_1971, xtmoins1 = rang_1961),
+         di_1971_1981 = di_t(xt = rang_1981, xtmoins1 = rang_1971),
+         di_1981_1991 = di_t(xt = rang_1991, xtmoins1 = rang_1981),
+         di_1991_2001 = di_t(xt = rang_2001, xtmoins1 = rang_1991),
+         di_2001_2011 = di_t(xt = rang_2011, xtmoins1 = rang_2001))
+
+
+mean_dt_country <- dt_tradeve %>%
+  ungroup() %>%
+  pivot_longer(cols = di_1961_1971:di_2001_2011, names_to = "periods", values_to = "di") %>%
+  group_by(periods, Country) %>%
+  summarise(dt = mean(di), dt_sd = sd(di), d = mean(di)/6, n = n())
+
+mean_dt_country %>%
+  filter(n > 100) %>%
+  mutate(periods = str_sub(string = periods, start = 4, end = 12),
+         Country = paste(Country, " n =", n)) %>%
+  ggplot(aes(x = periods, y = dt, group = Country, color = Country)) +
+  geom_point() +
+  geom_line() +
+  ggthemes::scale_color_tableau(palette = "Tableau 10") +
+  theme_bw() +
+  theme(axis.title.x = element_blank()) +
+  ylab("d(t)") +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = "Rank shift of European Cities",
+       subtitle = "Systems composed of more than 100 cities")
+
+ggsave(filename = "ranking_exploration/dt_european_cities.png", plot = last_plot(), width = 19, height = 13, units = 'cm')
+
+
 #### dk ####
 tradevetwo <- tradeve %>%
   select(Name, Country, Pop_1961:Pop_2011) %>%
@@ -156,47 +189,69 @@ dk_countries_tradeve %>%
   filter(Country %ni% c("CH", "MT", "LU", "CH")) %>%
   ggplot(mapping = aes(x = rang, y = `d(k)`)) +
   geom_line(color = "grey25") +
-  geom_point(size = 0.7) +
+  geom_point(size = 0.2) +
   scale_y_continuous(limits = c(0,1)) +
   scale_x_continuous(trans = "log10", name = "k") +
   theme_bw() +
+  theme(axis.text = element_text(size = 5)) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
        subtitle = "Rank diversity of European Cities: 1961-2011") +
   facet_wrap(~Country)
 
-ggsave(filename = "ranking_exploration/dk_maincountries_european_cities.png", plot = last_plot(), width = 19, height = 17, units = 'cm')
+ggsave(filename = "ranking_exploration/dk_maincountries_european_cities.png", plot = last_plot(), width = 21, height = 15, units = 'cm')
 
-#### dt de Batty 2006 ####
-dt_tradeve <- dk_countries_tradeve %>%
-  mutate(di_1961_1971 = di_t(xt = rang_1971, xtmoins1 = rang_1961),
-         di_1971_1981 = di_t(xt = rang_1981, xtmoins1 = rang_1971),
-         di_1981_1991 = di_t(xt = rang_1991, xtmoins1 = rang_1981),
-         di_1991_2001 = di_t(xt = rang_2001, xtmoins1 = rang_1991),
-         di_2001_2011 = di_t(xt = rang_2011, xtmoins1 = rang_2001))
-
-
-mean_dt_country <- dt_tradeve %>%
-  ungroup() %>%
-  pivot_longer(cols = di_1961_1971:di_2001_2011, names_to = "periods", values_to = "di") %>%
-  group_by(periods, Country) %>%
-  summarise(dt = mean(di), dt_sd = sd(di), d = mean(di)/6, n = n())
-
-mean_dt_country %>%
-  filter(n > 100) %>%
-  mutate(periods = str_sub(string = periods, start = 4, end = 12),
-         Country = paste(Country, " n =", n)) %>%
-  ggplot(aes(x = periods, y = dt, group = Country, color = Country)) +
-  geom_point() +
-  geom_line() +
-  ggthemes::scale_color_tableau(palette = "Tableau 10") +
+#### rank change C ####
+list_elements <- tradevetwo %>%
+  select(-Name:-estnull) %>%
+  pivot_longer(cols = rang_1961:rang_2011, names_to = "periods", values_to = "rang") %>%
+  arrange(rang, periods) %>%
+  group_by(rang) %>%
+  mutate(id_davant = lag(x = rowid)) %>%
+  mutate(ctt1 = if_else(condition = rowid == id_davant, 0, 1)) %>%
+  mutate(ctt1 = if_else(is.na(ctt1), 0, ctt1))
+  
+list_elements %>%
+  rename(k = rang) %>%
+  summarise(C = sum(ctt1)/5) %>%
+  ggplot(mapping = aes(x = k/nrow(tradevetwo), y = C)) +
+  geom_line(color = "grey25") +
+  geom_point(size = 0.7) +
+  scale_y_continuous(limits = c(0,1)) +
   theme_bw() +
-  theme(axis.title.x = element_blank()) +
-  ylab("d(t)") +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
-       title = "Rank shift of European Cities",
-       subtitle = "Systems composed of more than 100 cities")
+       subtitle = "...") 
 
-ggsave(filename = "ranking_exploration/dt_european_cities.png", plot = last_plot(), width = 19, height = 13, units = 'cm')
+
+# par pays
+list_elements <- dk_countries_tradeve %>%
+  rowid_to_column() %>%
+  select(rowid, Country, rang_1961:rang_2011) %>%
+  ungroup() %>%
+  filter(nchar(x = Country) < 3) %>%
+  filter(Country %ni% c("CH", "MT", "LU", "CH")) %>%
+  pivot_longer(cols = rang_1961:rang_2011, names_to = "periods", values_to = "rang") %>%
+  arrange(Country, rang, periods) %>%
+  group_by(Country, rang) %>%
+  mutate(id_davant = lag(x = rowid)) %>%
+  mutate(ctt1 = if_else(condition = rowid == id_davant, 0, 1)) %>%
+  mutate(ctt1 = if_else(is.na(ctt1), 0, ctt1))
+
+
+list_elements %>%
+  rename(k = rang) %>%
+  summarise(C = sum(ctt1)/5) %>%
+  mutate(est_max = max(k)) %>%
+  ggplot(mapping = aes(x = k/est_max, y = C)) +
+  geom_line(color = "grey25") +
+  geom_point(size = 0.7) +
+  scale_y_continuous(breaks = c(0, 0.5, 1)) +
+  scale_x_continuous(breaks = c(0, 0.5, 1), name = "k/N_0") +
+  theme_bw() +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       subtitle = "Rank change in ranking European cities by country: 1961-2011") +
+  facet_wrap(~ Country)
+
+ggsave(filename = "ranking_exploration/C_maincountries_european_cities.png", plot = last_plot(), width = 21, height = 15, units = 'cm')
 
 
     
