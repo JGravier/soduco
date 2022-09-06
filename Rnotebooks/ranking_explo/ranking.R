@@ -1,5 +1,8 @@
 library(tidyverse)
 library(readxl)
+library(ggpmisc)
+
+
 # data from: Gravier, Julie (2018): Areas and populations of urban settlements. figshare. Dataset. https://doi.org/10.6084/m9.figshare.5632015.v3 
 
 nord_france_data <- read_excel(path = "ranking_exploration/Data_EtmjPop_V2.xls", sheet = "Donnees")
@@ -155,7 +158,6 @@ rank_diversity <- tradevetwo %>%
 rank_diversity %>%
   ggplot(mapping = aes(x = rang, y = `d(k)`)) +
   geom_line(color = "grey25") +
-  geom_point(size = 0.7) +
   scale_y_continuous(limits = c(0,1)) +
   scale_x_continuous(trans = "log10", name = "k") +
   theme_bw() +
@@ -189,14 +191,13 @@ dk_countries_tradeve %>%
   filter(Country %ni% c("CH", "MT", "LU", "CH")) %>%
   ggplot(mapping = aes(x = rang, y = `d(k)`)) +
   geom_line(color = "grey25") +
-  geom_point(size = 0.2) +
   scale_y_continuous(limits = c(0,1)) +
   scale_x_continuous(trans = "log10", name = "k") +
   theme_bw() +
   theme(axis.text = element_text(size = 5)) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
        subtitle = "Rank diversity of European Cities: 1961-2011") +
-  facet_wrap(~Country)
+  facet_wrap(~Country, scales = "free")
 
 ggsave(filename = "ranking_exploration/dk_maincountries_european_cities.png", plot = last_plot(), width = 21, height = 15, units = 'cm')
 
@@ -215,11 +216,13 @@ list_elements %>%
   summarise(C = sum(ctt1)/5) %>%
   ggplot(mapping = aes(x = k/nrow(tradevetwo), y = C)) +
   geom_line(color = "grey25") +
-  geom_point(size = 0.7) +
-  scale_y_continuous(limits = c(0,1)) +
+  scale_y_continuous(breaks = c(0, 0.5, 1), limits = c(0,1)) +
+  scale_x_continuous(breaks = c(0, 0.5, 1), name = "k/N0") +
   theme_bw() +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
-       subtitle = "...") 
+       subtitle = "Rank change in ranking European cities: 1961-2011") 
+
+ggsave(filename = "ranking_exploration/C_european_cities.png", plot = last_plot(), width = 15, height = 12, units = 'cm')
 
 
 # par pays
@@ -243,15 +246,119 @@ list_elements %>%
   mutate(est_max = max(k)) %>%
   ggplot(mapping = aes(x = k/est_max, y = C)) +
   geom_line(color = "grey25") +
-  geom_point(size = 0.7) +
+  # geom_point(size = 0.7) +
   scale_y_continuous(breaks = c(0, 0.5, 1)) +
-  scale_x_continuous(breaks = c(0, 0.5, 1), name = "k/N_0") +
+  scale_x_continuous(breaks = c(0, 0.5, 1), name = "k/N0") +
   theme_bw() +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
        subtitle = "Rank change in ranking European cities by country: 1961-2011") +
   facet_wrap(~ Country)
 
 ggsave(filename = "ranking_exploration/C_maincountries_european_cities.png", plot = last_plot(), width = 21, height = 15, units = 'cm')
+
+#### delta x and delta r####
+# par pays
+dx_dr_countries <- dk_countries_tradeve %>%
+  rowid_to_column() %>%
+  mutate(diff_1961_1971 = (Pop_1971 - Pop_1961)/Pop_1961,
+         diff_1971_1981 = (Pop_1981 - Pop_1971)/Pop_1971,
+         diff_1981_1991 = (Pop_1991 - Pop_1981)/Pop_1981,
+         diff_1991_2001 = (Pop_2001 - Pop_1991)/Pop_1991,
+         diff_2001_2011 = (Pop_2011 - Pop_2001)/Pop_2001) %>%
+  pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = "periods", values_to = "popdiff") %>%
+  select(rowid:Country, periods, popdiff) %>%
+  left_join(x = ., y = dk_countries_tradeve %>%
+              rowid_to_column() %>%
+              mutate(ncities = n()) %>%
+              ungroup() %>%
+              mutate(diff_1961_1971 = (rang_1971 - rang_1961)/(ncities-1),
+                     diff_1971_1981 = (rang_1981 - rang_1971)/(ncities-1),
+                     diff_1981_1991 = (rang_1991 - rang_1981)/(ncities-1),
+                     diff_1991_2001 = (rang_2001 - rang_1991)/(ncities-1),
+                     diff_2001_2011 = (rang_2011 - rang_2001)/(ncities-1)) %>%
+              select(rowid, diff_1961_1971:diff_2001_2011) %>%
+              pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = "periods", values_to = "rangdiff"), 
+            by = c("periods", "rowid")) %>%
+  mutate(periods = str_sub(string = periods, start = 6, end = 14))
+
+
+
+
+dx_dr_countries %>%
+  filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO")) %>%
+  # filtre car croissance cheloue, soit disant Geesthacht passe de 41.3 habitants en 1961 à 23245 en 1971
+  filter(popdiff < 400) %>%
+  ggplot(mapping = aes(x = popdiff, y = rangdiff)) +
+  # ggpmisc::stat_poly_line(color = "grey40") +
+  # ggpmisc::stat_poly_eq(aes(label = paste(after_stat(eq.label),
+  #                                         after_stat(rr.label), sep = "*\", \"*")),
+  #                       size = 2, label.x = "right") +
+  geom_point(color = "grey25", alpha = 0.6) +
+  xlab(expression(paste(delta, "(x)"))) +
+  ylab(expression(paste(delta, "(r)"))) +
+  theme_bw() +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = "Ranking and score evolution of European cities",
+       subtitle = "Systems composed of more than 100 cities") +
+  facet_grid(Country ~ periods, scales = "free") 
+  
+
+ggsave(filename = "ranking_exploration/dx_dr_maincountries_european_cities.png", plot = last_plot(), 
+       width = 30, height = 25, units = 'cm')
+
+
+formula <- y ~ (-0.4 * x)
+
+dx_dr_countries %>%
+  filter(Country %in% c("FR", "UK")) %>%
+  ggplot(mapping = aes(x = popdiff, y = rangdiff)) +
+  ggpmisc::stat_poly_line(color = "grey40") +
+  ggpmisc::stat_poly_eq(aes(label = paste(after_stat(eq.label),
+                                            after_stat(rr.label), sep = "*\", \"*")),
+                          size = 2, label.x = "right") +
+  geom_point(color = "grey25", alpha = 0.6) +
+  xlab(expression(paste(delta, "(x)"))) +
+  scale_y_continuous(name = expression(paste(delta, "(r)"))) +
+  theme_bw() +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       subtitle = "Rank and score evolution of UK and FR cities") +
+  facet_grid(Country ~ periods)
+
+ggsave(filename = "ranking_exploration/dx_dr_UKFR_european_cities2.png", plot = last_plot(), 
+       width = 20, height = 17, units = 'cm')
+
+# elements: plots analyses
+library(ggfortify)
+library(patchwork)
+
+UK_FR <- dx_dr_countries %>%
+  filter(Country %in% c("FR", "UK"))
+
+liste_pays <- UK_FR %>% select(Country) %>% unique()
+liste_periods <- UK_FR %>% ungroup() %>% select(periods) %>% unique()
+
+for (i in 1:nrow(liste_pays)) {
+  pays <- liste_pays$Country[i]
+  
+  for (j in 1:nrow(liste_periods)) {
+    
+    period <- liste_periods$periods[j]
+    newdata <- UK_FR %>% 
+      filter(Country == pays & periods == period)
+    
+    visual <- autoplot(object = lm(rangdiff ~ popdiff, data = newdata)) + 
+      theme_bw()
+    
+    (visual@plots[[1]] + visual@plots[[2]]) / (visual@plots[[3]] + visual@plots[[4]]) +
+    plot_annotation(title = paste(pays, ":", period), 
+                             caption = "J. Gravier, 2022. Data: TRADEVE DB")
+    
+    ggsave(filename = paste0("ranking_exploration/statistics-sorties/dx-dr-lm-residual_", pays, period, ".png"), 
+           plot = last_plot(), 
+           dpi = 300, width = 18, height = 15, units = "cm")
+  }
+  
+}
 
 
     
