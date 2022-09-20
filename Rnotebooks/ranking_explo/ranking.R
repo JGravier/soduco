@@ -371,5 +371,31 @@ dx_dr_countries %>%
 ggsave(filename = "ranking_exploration/deltax-deltar-countries.png", plot = last_plot(),
        width = 24, height = 21, units = 'cm')
 
+#### quadrants ####
+dx_dr_countries <- dx_dr_countries %>%
+  mutate(reference = case_when(
+    deltablumm > 0 & rangdiff > 0 ~ "Quadrant 1",
+    deltablumm > 0 & rangdiff < 0 ~ "Quadrant 2",
+    deltablumm < 0 & rangdiff < 0 ~ "Quadrant 3",
+    TRUE ~ "Quadrant 4"
+  ))
+
+dx_dr_countries %>%
+  group_by(Country, periods, reference) %>%
+  summarise(n = n()) %>%
+  mutate(freq = n/sum(n)) %>%
+  ggplot(mapping = aes(y = freq, x = periods, fill = reference)) +
+  geom_bar(stat = "identity") +
+  ggthemes::scale_fill_tableau(palette = "Tableau 10") +
+  ylab("Freauency") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 5), axis.title.x = element_blank()) +
+  facet_wrap(~Country) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = bquote("Distribution of cities according to" ~ paste(Delta, x) ~ 'and' ~ paste(Delta, r)))
+
+ggsave(filename = "ranking_exploration/deltax-deltar-countries-distribution.png", plot = last_plot(),
+       width = 21, height = 18, units = 'cm')
+
 
 
