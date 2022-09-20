@@ -1,17 +1,11 @@
 library(tidyverse)
 library(readxl)
 library(ggpmisc)
+library(sf)
+library(ggfortify)
+library(patchwork)
 
-
-# data from: Gravier, Julie (2018): Areas and populations of urban settlements. figshare. Dataset. https://doi.org/10.6084/m9.figshare.5632015.v3 
-
-nord_france_data <- read_excel(path = "ranking_exploration/Data_EtmjPop_V2.xls", sheet = "Donnees")
-
-nord_france_data <- nord_france_data %>%
-  mutate(rang_1821 = dense_rank(desc(POP1821)),
-         rang_1836 = dense_rank(desc(POP1836)),
-         rang_1866 = dense_rank(desc(POP1866)))
-
+# function
 di_t <- function(xt, xtmoins1){
   x <- abs(xt - xtmoins1)
   return(x)
@@ -19,86 +13,18 @@ di_t <- function(xt, xtmoins1){
 
 `%ni%` <- Negate(`%in%`)
 
-
-nord_france_data <- nord_france_data %>%
-  mutate(di_1821_1836 = di_t(xt = rang_1836, xtmoins1 = rang_1821),
-         di_1836_1866 = di_t(xt = rang_1866, xtmoins1 = rang_1836),
-         no_abs_1821_1836 = rang_1821-rang_1836,
-         no_abs_1836_1866 = rang_1836-rang_1866)
-
-
-mean_dt <- nord_france_data %>%
-  summarise(dt_1821_1836 = mean(di_1821_1836), dt_1836_1866 = mean(di_1836_1866),
-            sd1 = sd(di_1821_1836), sd2 = sd(di_1836_1866))
-
-
-pivot_nord_france_data <- nord_france_data %>%
-  pivot_longer(data = ., cols = di_1821_1836:di_1836_1866, names_to = "periods", values_to = "di(t)") %>%
-  mutate(periods = str_sub(string = periods, start = 4, end = 12)) 
-
-mean_dt_pivot <- pivot_nord_france_data %>%
-  summarise(mean = mean(`di(t)`), sd = sd(`di(t)`))
-  
-pivot_nord_france_data %>%
-  mutate(categ = case_when(
-    `di(t)` <= (mean_dt_pivot$mean) ~ "<=mean",
-    TRUE  ~ ">mean"
-  )) %>%
-  ggplot(mapping = aes(x = periods, y = `di(t)`)) +
-  geom_point() +
-  geom_line(aes(group = NOM_COMM, color = NOM_COMM), show.legend = FALSE) +
-  facet_wrap(~ categ)
-
-
-pivot_nord_france_data %>%
-  ggplot(mapping = aes(x = periods, y = `di(t)`)) +
-  geom_point() +
-  geom_line(aes(group = NOM_COMM, color = NOM_COMM), show.legend = FALSE) +
-  facet_wrap(~ TYPE_LIEU)
-
-
-nord_france_data %>%
-  filter(di_1821_1836 > (mean_dt$dt_1821_1836 + mean_dt$sd1)) %>%
-  # filter(di_1836_1866 > (mean_dt$dt_1836_1866 + mean_dt$dt_1836_1866)) %>%
-  pivot_longer(data = ., cols = di_1821_1836:di_1836_1866, names_to = "periods", values_to = "di(t)") %>%
-  mutate(periods = str_sub(string = periods, start = 4, end = 12)) %>%
-  ggplot(mapping = aes(x = periods, y = `di(t)`)) +
-  geom_point() +
-  geom_line(aes(group = NOM_COMM, color = NOM_COMM), show.legend = TRUE)
-
-nord_france_data %>%
-  filter(di_1821_1836 > (mean_dt$dt_1821_1836)) %>%
-  filter(di_1836_1866 > (mean_dt$dt_1836_1866)) %>%
-  filter(TYPE_LIEU == "Ville") %>%
-  mutate(evo = case_when(
-    no_abs_1821_1836 < 0 & no_abs_1836_1866 < 0 ~ "decreased",
-    no_abs_1821_1836 > 0 & no_abs_1836_1866 > 0 ~ "increased",
-    TRUE ~ "both",
-  )) %>%
-  pivot_longer(data = ., cols = no_abs_1821_1836:no_abs_1836_1866, names_to = "periods", values_to = "di(t)") %>%
-  mutate(periods = str_sub(string = periods, start = 8, end = 16)) %>%
-  ggplot(mapping = aes(x = periods, y = `di(t)`, group = NOM_COMM, color = NOM_COMM), show.legend = TRUE) +
-  geom_point() +
-  geom_line() +
-  ggthemes::scale_color_tableau(palette = "Tableau 20") +
-  theme_bw() +
-  facet_grid(evo ~ TYPE_LIEU)
-
-# rank diversity
-rank_diversity <- nord_france_data %>%
-  select(NOM_COMM, rang_1821:rang_1866) %>%
-  pivot_longer(cols = rang_1821:rang_1866, names_to = "date", values_to = "rang") %>%
-  group_by(rang) %>%
-  summarise(n_dist = n_distinct(NOM_COMM),
-    `d(k)` = n_distinct(NOM_COMM)/3)
-
-rank_diversity %>%
-  ggplot(mapping = aes(x = rang, y = `d(k)`)) +
-  geom_point() +
-  geom_line()
   
 #### tradeve database ####
 tradeve <- read_excel(path = "ranking_exploration/TRADEVE_database/TRADEVE_UrbanAreas_Data.xlsx", sheet = "UrbanAreas_Data")
+
+dk_countries_tradeve <- tradeve %>%
+  group_by(Country) %>%
+  mutate(rang_1961 = rank(desc(Pop_1961)),
+         rang_1971 = rank(desc(Pop_1971)),
+         rang_1981 = rank(desc(Pop_1981)),
+         rang_1991 = rank(desc(Pop_1991)),
+         rang_2001 = rank(desc(Pop_2001)),
+         rang_2011 = rank(desc(Pop_2011)))
 
 #### dt de Batty 2006 ####
 dt_tradeve <- dk_countries_tradeve %>%
@@ -158,8 +84,8 @@ rank_diversity <- tradevetwo %>%
 rank_diversity %>%
   ggplot(mapping = aes(x = rang, y = `d(k)`)) +
   geom_line(color = "grey25") +
-  scale_y_continuous(limits = c(0,1)) +
-  scale_x_continuous(trans = "log10", name = "k") +
+  scale_y_continuous(limits = c(0,1), name = expression(d(k))) +
+  scale_x_continuous(trans = "log10", name = expression(k)) +
   theme_bw() +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
        subtitle = "Rank diversity of European Cities: 1961-2011")
@@ -169,16 +95,6 @@ ggsave(filename = "ranking_exploration/dk_european_cities.png", plot = last_plot
 
 
 #  par pays et non uniquement à l'échelle européenne
-dk_countries_tradeve <- tradeve %>%
-  group_by(Country) %>%
-  mutate(rang_1961 = rank(desc(Pop_1961)),
-         rang_1971 = rank(desc(Pop_1971)),
-         rang_1981 = rank(desc(Pop_1981)),
-         rang_1991 = rank(desc(Pop_1991)),
-         rang_2001 = rank(desc(Pop_2001)),
-         rang_2011 = rank(desc(Pop_2011)))
-
-
 dk_countries_tradeve %>%
   rowid_to_column() %>%
   select(rowid, Country, rang_1961:rang_2011) %>%
@@ -187,8 +103,7 @@ dk_countries_tradeve %>%
   group_by(Country, rang) %>%
   summarise(`d(k)` = n_distinct(rowid)/6,
             distinction = n_distinct(rowid)) %>%
-  filter(nchar(x = Country) < 3) %>%
-  filter(Country %ni% c("CH", "MT", "LU", "CH")) %>%
+  filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO")) %>%
   ggplot(mapping = aes(x = rang, y = `d(k)`)) +
   geom_line(color = "grey25") +
   scale_y_continuous(limits = c(0,1)) +
@@ -230,8 +145,7 @@ list_elements <- dk_countries_tradeve %>%
   rowid_to_column() %>%
   select(rowid, Country, rang_1961:rang_2011) %>%
   ungroup() %>%
-  filter(nchar(x = Country) < 3) %>%
-  filter(Country %ni% c("CH", "MT", "LU", "CH")) %>%
+  filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO")) %>%
   pivot_longer(cols = rang_1961:rang_2011, names_to = "periods", values_to = "rang") %>%
   arrange(Country, rang, periods) %>%
   group_by(Country, rang) %>%
@@ -248,7 +162,7 @@ list_elements %>%
   geom_line(color = "grey25") +
   # geom_point(size = 0.7) +
   scale_y_continuous(breaks = c(0, 0.5, 1)) +
-  scale_x_continuous(breaks = c(0, 0.5, 1), name = "k/N0") +
+  scale_x_continuous(breaks = c(0, 0.5, 1), name = expression(frac(k, N0))) +
   theme_bw() +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
        subtitle = "Rank change in ranking European cities by country: 1961-2011") +
@@ -256,17 +170,174 @@ list_elements %>%
 
 ggsave(filename = "ranking_exploration/C_maincountries_european_cities.png", plot = last_plot(), width = 21, height = 15, units = 'cm')
 
-#### delta x and delta r####
+#### Blumm: x & delta x ####
+x_normalized  <- dk_countries_tradeve %>%
+  ungroup() %>%
+  rowid_to_column() %>%
+  mutate(
+    x_normalized_1961 = Pop_1961/sum(Pop_1961, na.rm = TRUE),
+    x_normalized_1971 = Pop_1971/sum(Pop_1971, na.rm = TRUE),
+    x_normalized_1981 = Pop_1981/sum(Pop_1981, na.rm = TRUE),
+    x_normalized_1991 = Pop_1991/sum(Pop_1991, na.rm = TRUE),
+    x_normalized_2001 = Pop_2001/sum(Pop_2001, na.rm = TRUE),
+    x_normalized_2011 = Pop_2011/sum(Pop_2011, na.rm = TRUE)) %>%
+  select(rowid, Name, Country, x_normalized_1961:x_normalized_2011) %>%
+  pivot_longer(cols = x_normalized_1961:x_normalized_2011, names_to = "periods", values_to = "xnormalized")
+
+x_normalized %>%
+  ggplot(mapping = aes(x = xnormalized)) +
+  geom_histogram(bins = 100) +
+  scale_x_continuous(trans = 'log10', name = expression(paste(x, (i), t, '...',tn))) +
+  theme_bw() +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       subtitle = "European cities: 1961-2011")
+
+ggsave(filename = "ranking_exploration/distrib_xi.png", plot = last_plot(), width = 16, height = 14, units = 'cm')
+
+blumm_deltax <- dk_countries_tradeve %>%
+  ungroup() %>%
+  rowid_to_column() %>%
+  mutate(delta_1961_1971 = Pop_1971/sum(Pop_1971, na.rm = TRUE) - Pop_1961/sum(Pop_1961, na.rm = TRUE),
+         delta_1971_1981 = Pop_1981/sum(Pop_1981, na.rm = TRUE) - Pop_1971/sum(Pop_1971, na.rm = TRUE),
+         delta_1981_1991 = Pop_1991/sum(Pop_1991, na.rm = TRUE) - Pop_1981/sum(Pop_1981, na.rm = TRUE),
+         delta_1991_2001 = Pop_2001/sum(Pop_2001, na.rm = TRUE) - Pop_1991/sum(Pop_1991, na.rm = TRUE),
+         delta_2001_2011 = Pop_2011/sum(Pop_2011, na.rm = TRUE) - Pop_2001/sum(Pop_2001, na.rm = TRUE)) %>%
+  pivot_longer(cols = delta_1961_1971:delta_2001_2011, names_to = "periods_intervals", values_to = "deltablumm") %>%
+  select(rowid, Name, Country, periods_intervals, deltablumm)
+
+
+# lier les xit et les delta x
+# le truc qui n est pas clair est le lien xit et delta x (faire 2 possibilites de join, en considerant le temps ou non)
+all_periods_deltax <-  x_normalized %>%
+  left_join(x = ., y = blumm_deltax, by = c("rowid", "Name", "Country"))
+
+classcuting <- classInt::classIntervals(var = log10(all_periods_deltax$xnormalized), n = 100, style = "equal")
+
+all_periods_deltax_summarised <- all_periods_deltax %>%
+  mutate(lgxnormalized = log10(xnormalized)) %>%
+  mutate(classeslg = cut(x = lgxnormalized, classcuting$brks, include.lowest = TRUE)) %>%
+  group_by(classeslg) %>%
+  summarise(meanx = mean(xnormalized, na.rm = TRUE),
+            sddeltax = sd(deltablumm, na.rm = TRUE),
+            vardeltax = var(deltablumm))
+
+
+# visualisation
+all_periods_deltax_summarised %>%
+  ggplot(aes(x = meanx, y = sddeltax)) +
+  geom_point(alpha = 0.7, color = 'darkorange') +
+  scale_x_continuous(trans = 'log10', name = 'x') +
+  scale_y_continuous(trans = 'log10', name = expression(paste(sigma, Delta, "x"))) +
+  ggpmisc::stat_poly_line(color = "grey40", size = 0.4) +
+  ggpmisc::stat_poly_eq(aes(label = paste(after_stat(eq.label),
+                                          after_stat(rr.label), sep = "*\", \"*")),
+                        size = 2, label.x = "right") +
+  theme_bw() +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = "European cities: 1961-2011", 
+       subtitle = bquote("Where" ~ sigma[paste(Delta, 'x|x')] ~ "based on Blumm et al. 2012"))
+
+ggsave(filename = "ranking_exploration/distrib_xit_deltaxt.png", plot = last_plot(),  width = 16, height = 14, units = 'cm')
+
+#### same by country ####
+# ce sont les classifications qui doivent etre differentes selon les pays + un filtre initial evidemment
+all_periods_deltax_countries <- all_periods_deltax %>%
+  filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO"))
+
+
+all_periods_deltax_c_summarised <- tibble(
+  classeslg = factor(),
+  meanx = numeric(),
+  sddeltax = numeric(),
+  vardeltax = numeric(),
+  country = character()
+)
+
+paysliste <- all_periods_deltax_countries %>%
+  select(Country) %>%
+  unique()
+
+for (i in 1:nrow(x = paysliste)) {
+  
+  payslisteextract <- paysliste$Country[i]
+  
+  datapays <- all_periods_deltax_countries %>%
+    filter(Country == payslisteextract)
+  
+  classcuting <- classInt::classIntervals(var = log10(datapays$xnormalized), n = 100, style = "equal")
+  
+  all_periods_deltax_c_summarised <- all_periods_deltax_c_summarised %>%
+  bind_rows(all_periods_deltax %>%
+              mutate(lgxnormalized = log10(xnormalized)) %>%
+              mutate(classeslg = cut(x = lgxnormalized, classcuting$brks, include.lowest = TRUE)) %>%
+              group_by(classeslg) %>%
+              summarise(meanx = mean(xnormalized, na.rm = TRUE),
+                        sddeltax = sd(deltablumm, na.rm = TRUE),
+                        vardeltax = var(deltablumm)) %>%
+              mutate(country = paysliste$Country[i]))
+  
+}
+
+# visualisation
+all_periods_deltax_c_summarised %>%
+  ggplot(aes(x = meanx, y = sddeltax)) +
+  geom_point(size = 0.5, alpha = 0.7, color = 'darkorange') +
+  scale_x_continuous(trans = 'log10', name = 'x') +
+  scale_y_continuous(trans = 'log10', name = expression(paste(sigma, Delta, "x"))) +
+  ggpmisc::stat_poly_line(color = "grey40", size = 0.4, se = FALSE) +
+  ggpmisc::stat_poly_eq(aes(label = paste(after_stat(eq.label),
+                                          after_stat(rr.label), sep = "*\", \"*")),
+                        size = 2, label.x = "right") +
+  theme_bw() +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = "European cities: 1961-2011", 
+       subtitle = bquote("Where" ~ sigma[paste(Delta, 'x|x')] ~ "based on Blumm et al. 2012")) +
+  facet_wrap(~ country)
+
+ggsave(filename = "ranking_exploration/distrib_xit_deltaxt-countries.png", plot = last_plot(),
+       width = 16, height = 14, units = 'cm')
+
+#### surface plots ####
+# je pense qu'ils font varier les bins ici justement
+
+all_periods_deltax %>%
+  ggplot(mapping = aes(x = xnormalized, y = deltablumm)) +
+  geom_bin2d(bins = 100) +
+  scale_fill_viridis_b(option = "magma", direction = -1, n.breaks = 10) +
+  scale_x_continuous(trans = "log10", name = "x") +
+  ylab(label = expression(paste(Delta, 'x'))) +
+  theme_bw() +
+  theme(legend.text = element_text(size = 5)) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = "European cities: 1961-2011")
+
+ggsave(filename = "ranking_exploration/distrib_xit_deltaxt_surfaceplot.png", plot = last_plot(),
+       width = 16, height = 14, units = 'cm')
+
+all_periods_deltax_countries %>%
+  ggplot(mapping = aes(x = xnormalized, y = deltablumm)) +
+  geom_bin2d(bins = 100, drop = TRUE) +
+  scale_fill_viridis_b(option = "magma", direction = -1, n.breaks = 10) +
+  scale_x_continuous(trans = "log10", name = "x") +
+  ylab(label = expression(paste(Delta, 'x'))) +
+  theme_bw() +
+  theme(legend.text = element_text(size = 5)) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = "European cities: 1961-2011") +
+  facet_wrap(~ Country, scales = "free_x")
+
+
+#### delta x et delta r ####
 # par pays
 dx_dr_countries <- dk_countries_tradeve %>%
   rowid_to_column() %>%
-  mutate(diff_1961_1971 = (Pop_1971 - Pop_1961)/Pop_1961,
-         diff_1971_1981 = (Pop_1981 - Pop_1971)/Pop_1971,
-         diff_1981_1991 = (Pop_1991 - Pop_1981)/Pop_1981,
-         diff_1991_2001 = (Pop_2001 - Pop_1991)/Pop_1991,
-         diff_2001_2011 = (Pop_2011 - Pop_2001)/Pop_2001) %>%
-  pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = "periods", values_to = "popdiff") %>%
-  select(rowid:Country, periods, popdiff) %>%
+  mutate(diff_1961_1971 = Pop_1971/sum(Pop_1971, na.rm = TRUE) - Pop_1961/sum(Pop_1961, na.rm = TRUE),
+         diff_1971_1981 = Pop_1981/sum(Pop_1981, na.rm = TRUE) - Pop_1971/sum(Pop_1971, na.rm = TRUE),
+         diff_1981_1991 = Pop_1991/sum(Pop_1991, na.rm = TRUE) - Pop_1981/sum(Pop_1981, na.rm = TRUE),
+         diff_1991_2001 = Pop_2001/sum(Pop_2001, na.rm = TRUE) - Pop_1991/sum(Pop_1991, na.rm = TRUE),
+         diff_2001_2011 = Pop_2011/sum(Pop_2011, na.rm = TRUE) - Pop_2001/sum(Pop_2001, na.rm = TRUE)) %>%
+  pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = "periods", values_to = "deltablumm") %>%
+  select(rowid, Name, Country, periods, deltablumm) %>%
   left_join(x = ., y = dk_countries_tradeve %>%
               rowid_to_column() %>%
               mutate(ncities = n()) %>%
@@ -279,86 +350,26 @@ dx_dr_countries <- dk_countries_tradeve %>%
               select(rowid, diff_1961_1971:diff_2001_2011) %>%
               pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = "periods", values_to = "rangdiff"), 
             by = c("periods", "rowid")) %>%
-  mutate(periods = str_sub(string = periods, start = 6, end = 14))
-
-
-
+  mutate(periods = str_sub(string = periods, start = 6, end = 14)) %>%
+  filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO"))
 
 dx_dr_countries %>%
-  filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO")) %>%
-  # filtre car croissance cheloue, soit disant Geesthacht passe de 41.3 habitants en 1961 à 23245 en 1971
-  filter(popdiff < 400) %>%
-  ggplot(mapping = aes(x = popdiff, y = rangdiff)) +
-  # ggpmisc::stat_poly_line(color = "grey40") +
+  filter(Name != 'Geesthacht') %>%
+  ggplot(aes(x = deltablumm, y = rangdiff)) +
+  geom_point(size = 0.3, alpha = 0.7, color = 'darkorange') +
+  scale_x_continuous(name = expression(paste(Delta, "x"))) +
+  scale_y_continuous(name = expression(paste(Delta, "r"))) +
+  # ggpmisc::stat_poly_line(color = "grey40", size = 0.2) +
   # ggpmisc::stat_poly_eq(aes(label = paste(after_stat(eq.label),
   #                                         after_stat(rr.label), sep = "*\", \"*")),
   #                       size = 2, label.x = "right") +
-  geom_point(color = "grey25", alpha = 0.6) +
-  xlab(expression(paste(delta, "(x)"))) +
-  ylab(expression(paste(delta, "(r)"))) +
   theme_bw() +
-  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
-       title = "Ranking and score evolution of European cities",
-       subtitle = "Systems composed of more than 100 cities") +
-  facet_grid(Country ~ periods, scales = "free") 
-  
+  theme(axis.text = element_text(size = 6)) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB") +
+  facet_grid(periods~Country, scales = "free")
 
-ggsave(filename = "ranking_exploration/dx_dr_maincountries_european_cities.png", plot = last_plot(), 
-       width = 30, height = 25, units = 'cm')
+ggsave(filename = "ranking_exploration/deltax-deltar-countries.png", plot = last_plot(),
+       width = 24, height = 21, units = 'cm')
 
 
-formula <- y ~ (-0.4 * x)
 
-dx_dr_countries %>%
-  filter(Country %in% c("FR", "UK")) %>%
-  ggplot(mapping = aes(x = popdiff, y = rangdiff)) +
-  ggpmisc::stat_poly_line(color = "grey40") +
-  ggpmisc::stat_poly_eq(aes(label = paste(after_stat(eq.label),
-                                            after_stat(rr.label), sep = "*\", \"*")),
-                          size = 2, label.x = "right") +
-  geom_point(color = "grey25", alpha = 0.6) +
-  xlab(expression(paste(delta, "(x)"))) +
-  scale_y_continuous(name = expression(paste(delta, "(r)"))) +
-  theme_bw() +
-  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
-       subtitle = "Rank and score evolution of UK and FR cities") +
-  facet_grid(Country ~ periods)
-
-ggsave(filename = "ranking_exploration/dx_dr_UKFR_european_cities2.png", plot = last_plot(), 
-       width = 20, height = 17, units = 'cm')
-
-# elements: plots analyses
-library(ggfortify)
-library(patchwork)
-
-UK_FR <- dx_dr_countries %>%
-  filter(Country %in% c("FR", "UK"))
-
-liste_pays <- UK_FR %>% select(Country) %>% unique()
-liste_periods <- UK_FR %>% ungroup() %>% select(periods) %>% unique()
-
-for (i in 1:nrow(liste_pays)) {
-  pays <- liste_pays$Country[i]
-  
-  for (j in 1:nrow(liste_periods)) {
-    
-    period <- liste_periods$periods[j]
-    newdata <- UK_FR %>% 
-      filter(Country == pays & periods == period)
-    
-    visual <- autoplot(object = lm(rangdiff ~ popdiff, data = newdata)) + 
-      theme_bw()
-    
-    (visual@plots[[1]] + visual@plots[[2]]) / (visual@plots[[3]] + visual@plots[[4]]) +
-    plot_annotation(title = paste(pays, ":", period), 
-                             caption = "J. Gravier, 2022. Data: TRADEVE DB")
-    
-    ggsave(filename = paste0("ranking_exploration/statistics-sorties/dx-dr-lm-residual_", pays, period, ".png"), 
-           plot = last_plot(), 
-           dpi = 300, width = 18, height = 15, units = "cm")
-  }
-  
-}
-
-
-    
