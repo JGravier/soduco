@@ -185,12 +185,14 @@ x_normalized  <- dk_countries_tradeve %>%
   pivot_longer(cols = x_normalized_1961:x_normalized_2011, names_to = "periods", values_to = "xnormalized")
 
 x_normalized %>%
+  filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO")) %>%
   ggplot(mapping = aes(x = xnormalized)) +
   geom_histogram(bins = 100) +
   scale_x_continuous(trans = 'log10', name = expression(paste(x, (i), t, '...',tn))) +
   theme_bw() +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
-       subtitle = "European cities: 1961-2011")
+       subtitle = "European cities: 1961-2011") +
+  facet_wrap(~ Country)
 
 ggsave(filename = "ranking_exploration/distrib_xi.png", plot = last_plot(), width = 16, height = 14, units = 'cm')
 
@@ -205,21 +207,22 @@ blumm_deltax <- dk_countries_tradeve %>%
   pivot_longer(cols = delta_1961_1971:delta_2001_2011, names_to = "periods_intervals", values_to = "deltablumm") %>%
   select(rowid, Name, Country, periods_intervals, deltablumm)
 
-
 # lier les xit et les delta x
-# le truc qui n est pas clair est le lien xit et delta x (faire 2 possibilites de join, en considerant le temps ou non)
-all_periods_deltax <-  x_normalized %>%
-  left_join(x = ., y = blumm_deltax, by = c("rowid", "Name", "Country"))
+# il fqut 1) faire les bins, calculer la moyenne des xit
+# dans ces bins, checker les xit et calculer xit - xit-1
+# calculer la variance (plutot l ecart-type en l occurrence > sigma des delta x)
+classcuting <- classInt::classIntervals(var = log10(x_normalized$xnormalized), n = 50, style = "equal")
 
-classcuting <- classInt::classIntervals(var = log10(all_periods_deltax$xnormalized), n = 100, style = "equal")
-
-all_periods_deltax_summarised <- all_periods_deltax %>%
+all_periods_deltax_summarised <- x_normalized %>%
   mutate(lgxnormalized = log10(xnormalized)) %>%
   mutate(classeslg = cut(x = lgxnormalized, classcuting$brks, include.lowest = TRUE)) %>%
+  left_join(x = ., y = blumm_deltax %>%
+              mutate(periods = paste0("x_normalized_", str_sub(string = periods_intervals, start=12, end=15))),
+            by = c("rowid", 'Name', "Country", "periods")) %>%
   group_by(classeslg) %>%
   summarise(meanx = mean(xnormalized, na.rm = TRUE),
             sddeltax = sd(deltablumm, na.rm = TRUE),
-            vardeltax = var(deltablumm))
+            vardeltax = var(deltablumm, na.rm = TRUE))
 
 
 # visualisation
@@ -241,7 +244,7 @@ ggsave(filename = "ranking_exploration/distrib_xit_deltaxt.png", plot = last_plo
 
 #### same by country ####
 # ce sont les classifications qui doivent etre differentes selon les pays + un filtre initial evidemment
-all_periods_deltax_countries <- all_periods_deltax %>%
+all_periods_deltax_countries <- x_normalized %>%
   filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO"))
 
 
@@ -264,16 +267,19 @@ for (i in 1:nrow(x = paysliste)) {
   datapays <- all_periods_deltax_countries %>%
     filter(Country == payslisteextract)
   
-  classcuting <- classInt::classIntervals(var = log10(datapays$xnormalized), n = 100, style = "equal")
+  classcuting <- classInt::classIntervals(var = log10(datapays$xnormalized), n = 50, style = "equal")
   
   all_periods_deltax_c_summarised <- all_periods_deltax_c_summarised %>%
-  bind_rows(all_periods_deltax %>%
+  bind_rows(all_periods_deltax_countries %>%
               mutate(lgxnormalized = log10(xnormalized)) %>%
               mutate(classeslg = cut(x = lgxnormalized, classcuting$brks, include.lowest = TRUE)) %>%
+              left_join(x = ., y = blumm_deltax %>%
+                          mutate(periods = paste0("x_normalized_", str_sub(string = periods_intervals, start=12, end=15))),
+                        by = c("rowid", 'Name', "Country", "periods")) %>%
               group_by(classeslg) %>%
               summarise(meanx = mean(xnormalized, na.rm = TRUE),
                         sddeltax = sd(deltablumm, na.rm = TRUE),
-                        vardeltax = var(deltablumm)) %>%
+                        vardeltax = var(deltablumm, na.rm = TRUE))%>%
               mutate(country = paysliste$Country[i]))
   
 }
@@ -295,7 +301,7 @@ all_periods_deltax_c_summarised %>%
   facet_wrap(~ country)
 
 ggsave(filename = "ranking_exploration/distrib_xit_deltaxt-countries.png", plot = last_plot(),
-       width = 16, height = 14, units = 'cm')
+       width = 18, height = 16, units = 'cm')
 
 #### surface plots ####
 # je pense qu'ils font varier les bins ici justement
@@ -381,13 +387,14 @@ dx_dr_countries <- dx_dr_countries %>%
   ))
 
 dx_dr_countries %>%
+  filter(Name != 'Geesthacht') %>%
   group_by(Country, periods, reference) %>%
   summarise(n = n()) %>%
   mutate(freq = n/sum(n)) %>%
   ggplot(mapping = aes(y = freq, x = periods, fill = reference)) +
   geom_bar(stat = "identity") +
   ggthemes::scale_fill_tableau(palette = "Tableau 10") +
-  ylab("Freauency") +
+  ylab("Frequency") +
   theme_bw() +
   theme(axis.text.x = element_text(size = 5), axis.title.x = element_blank()) +
   facet_wrap(~Country) +
@@ -397,5 +404,54 @@ dx_dr_countries %>%
 ggsave(filename = "ranking_exploration/deltax-deltar-countries-distribution.png", plot = last_plot(),
        width = 21, height = 18, units = 'cm')
 
+#### distributions ####
+sdrang <- dx_dr_countries %>%
+  group_by(Country, periods) %>%
+  summarise(moyennerang = mean(rangdiff, na.rm = TRUE),
+            sdrang = sd(rangdiff))
 
+rangdiffusion_saut <- dx_dr_countries %>%
+  left_join(x = ., y = sdrang, by = c("Country", "periods")) %>%
+  mutate(diffusion_saut = case_when(
+    rangdiff < (moyennerang - sdrang) | rangdiff > (moyennerang + sdrang) ~ "jump",
+    TRUE ~ "diffusion"
+  ))
+
+rangdiffusion_saut %>%
+  filter(Name != 'Geesthacht') %>%
+  group_by(Country, periods, diffusion_saut) %>%
+  summarise(n = n()) %>%
+  mutate(freq = n/sum(n)) %>%
+  rename(`based on\ndelta r sd` = diffusion_saut) %>%
+  ggplot(mapping = aes(y = freq, x = periods, fill = `based on\ndelta r sd`)) +
+  geom_bar(stat = "identity") +
+  ggthemes::scale_fill_tableau(palette = "Tableau 10") +
+  ylab("Frequency") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 5), axis.title.x = element_blank()) +
+  facet_wrap(~Country) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = bquote("Distribution of cities according to" ~ paste(Delta, x) ~ 'and' ~ paste(Delta, r)))
+
+ggsave(filename = "ranking_exploration/deltax-deltar-diff-jump2sd.png", plot = last_plot(),
+       width = 21, height = 18, units = 'cm')
+
+
+rangdiffusion_saut %>%
+  filter(Name != 'Geesthacht') %>%
+  rename(`based on\ndelta r sd` = diffusion_saut) %>%
+  ggplot(mapping = aes(x = deltablumm, color = `based on\ndelta r sd`, fill = `based on\ndelta r sd`)) +
+  geom_density(alpha = 0.2, size = 0.5) +
+  scale_x_continuous(trans = "log10", name = expression(paste(Delta, "x"))) +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 5)) +
+  facet_grid(periods~Country, scales = "free_y") +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = bquote("Distribution of" ~ paste(Delta, x) ~ 'according to' ~ paste(Delta, r)))
+
+ggsave(filename = "ranking_exploration/deltax-deltar-diff-jump-distrib.png", plot = last_plot(),
+       width = 25, height = 16, units = 'cm')
+
+
+#### mu x et delta r ####
 
