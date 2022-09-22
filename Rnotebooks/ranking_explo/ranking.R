@@ -303,10 +303,14 @@ all_periods_deltax_c_summarised %>%
 ggsave(filename = "ranking_exploration/distrib_xit_deltaxt-countries.png", plot = last_plot(),
        width = 18, height = 16, units = 'cm')
 
-#### surface plots ####
-# je pense qu'ils font varier les bins ici justement
 
-all_periods_deltax %>%
+#### surface plots ####
+x_normalized %>%
+  mutate(lgxnormalized = log10(xnormalized)) %>%
+  mutate(classeslg = cut(x = lgxnormalized, classcuting$brks, include.lowest = TRUE)) %>%
+  left_join(x = ., y = blumm_deltax %>%
+              mutate(periods = paste0("x_normalized_", str_sub(string = periods_intervals, start=12, end=15))),
+            by = c("rowid", 'Name', "Country", "periods")) %>%
   ggplot(mapping = aes(x = xnormalized, y = deltablumm)) +
   geom_bin2d(bins = 100) +
   scale_fill_viridis_b(option = "magma", direction = -1, n.breaks = 10) +
@@ -320,9 +324,15 @@ all_periods_deltax %>%
 ggsave(filename = "ranking_exploration/distrib_xit_deltaxt_surfaceplot.png", plot = last_plot(),
        width = 16, height = 14, units = 'cm')
 
+# by countries
 all_periods_deltax_countries %>%
+  mutate(lgxnormalized = log10(xnormalized)) %>%
+  mutate(classeslg = cut(x = lgxnormalized, classcuting$brks, include.lowest = TRUE)) %>%
+  left_join(x = ., y = blumm_deltax %>%
+              mutate(periods = paste0("x_normalized_", str_sub(string = periods_intervals, start=12, end=15))),
+            by = c("rowid", 'Name', "Country", "periods")) %>%
   ggplot(mapping = aes(x = xnormalized, y = deltablumm)) +
-  geom_bin2d(bins = 100, drop = TRUE) +
+  geom_bin2d(bins = 50, drop = TRUE) +
   scale_fill_viridis_b(option = "magma", direction = -1, n.breaks = 10) +
   scale_x_continuous(trans = "log10", name = "x") +
   ylab(label = expression(paste(Delta, 'x'))) +
@@ -330,7 +340,7 @@ all_periods_deltax_countries %>%
   theme(legend.text = element_text(size = 5)) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
        title = "European cities: 1961-2011") +
-  facet_wrap(~ Country, scales = "free_x")
+  facet_wrap(~ Country, scales = "free")
 
 
 #### delta x et delta r ####
@@ -413,7 +423,7 @@ sdrang <- dx_dr_countries %>%
 rangdiffusion_saut <- dx_dr_countries %>%
   left_join(x = ., y = sdrang, by = c("Country", "periods")) %>%
   mutate(diffusion_saut = case_when(
-    rangdiff < (moyennerang - sdrang) | rangdiff > (moyennerang + sdrang) ~ "jump",
+    rangdiff < (moyennerang - 2*sdrang) | rangdiff > (moyennerang + 2*sdrang) ~ "jump",
     TRUE ~ "diffusion"
   ))
 
@@ -422,8 +432,8 @@ rangdiffusion_saut %>%
   group_by(Country, periods, diffusion_saut) %>%
   summarise(n = n()) %>%
   mutate(freq = n/sum(n)) %>%
-  rename(`based on\ndelta r sd` = diffusion_saut) %>%
-  ggplot(mapping = aes(y = freq, x = periods, fill = `based on\ndelta r sd`)) +
+  rename(`based on\ndelta r 2sd` = diffusion_saut) %>%
+  ggplot(mapping = aes(y = freq, x = periods, fill = `based on\ndelta r 2sd`)) +
   geom_bar(stat = "identity") +
   ggthemes::scale_fill_tableau(palette = "Tableau 10") +
   ylab("Frequency") +
@@ -431,7 +441,7 @@ rangdiffusion_saut %>%
   theme(axis.text.x = element_text(size = 5), axis.title.x = element_blank()) +
   facet_wrap(~Country) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
-       title = bquote("Distribution of cities according to" ~ paste(Delta, x) ~ 'and' ~ paste(Delta, r)))
+       title = bquote("Distribution of cities according to" ~ paste(Delta, r)))
 
 ggsave(filename = "ranking_exploration/deltax-deltar-diff-jump2sd.png", plot = last_plot(),
        width = 21, height = 18, units = 'cm')
@@ -439,19 +449,247 @@ ggsave(filename = "ranking_exploration/deltax-deltar-diff-jump2sd.png", plot = l
 
 rangdiffusion_saut %>%
   filter(Name != 'Geesthacht') %>%
-  rename(`based on\ndelta r sd` = diffusion_saut) %>%
-  ggplot(mapping = aes(x = deltablumm, color = `based on\ndelta r sd`, fill = `based on\ndelta r sd`)) +
+  rename(`based on\ndelta r 2sd` = diffusion_saut) %>%
+  ggplot(mapping = aes(x = abs(deltablumm), color = `based on\ndelta r 2sd`, fill = `based on\ndelta r 2sd`)) +
   geom_density(alpha = 0.2, size = 0.5) +
-  scale_x_continuous(trans = "log10", name = expression(paste(Delta, "x"))) +
+  scale_x_continuous(trans = "log10", name = expression(paste("|", Delta, "x", "|"))) +
   theme_bw() +
   theme(axis.text.x = element_text(size = 5)) +
   facet_grid(periods~Country, scales = "free_y") +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
        title = bquote("Distribution of" ~ paste(Delta, x) ~ 'according to' ~ paste(Delta, r)))
 
-ggsave(filename = "ranking_exploration/deltax-deltar-diff-jump-distrib.png", plot = last_plot(),
+ggsave(filename = "ranking_exploration/deltax-deltar-diff-jump-distrib2sd.png", plot = last_plot(),
        width = 25, height = 16, units = 'cm')
 
 
 #### mu x et delta r ####
+tau_x <- dk_countries_tradeve %>%
+  rowid_to_column() %>%
+  group_by(Country) %>%
+  mutate(diff_1961_1971 = (Pop_1971 - Pop_1961)/Pop_1961,
+         diff_1971_1981 = (Pop_1981 - Pop_1971)/Pop_1971,
+         diff_1981_1991 = (Pop_1991 - Pop_1981)/Pop_1981,
+         diff_1991_2001 = (Pop_2001 - Pop_1991)/Pop_1991,
+         diff_2001_2011 = (Pop_2011 - Pop_2001)/Pop_2001) %>%
+  mutate(mean_tau_x = (Pop_2011/Pop_1961)^(1/6)-1) %>%
+  pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = 'periods', values_to = 'tau_ville') %>%
+  select(rowid, Name, Country, periods, mean_tau_x, tau_ville) %>%
+  left_join(x = ., y = dk_countries_tradeve %>%
+              rowid_to_column() %>%
+              mutate(ncities = n()) %>%
+              ungroup() %>%
+              mutate(diff_1961_1971 = (rang_1971 - rang_1961)/(ncities-1),
+                     diff_1971_1981 = (rang_1981 - rang_1971)/(ncities-1),
+                     diff_1981_1991 = (rang_1991 - rang_1981)/(ncities-1),
+                     diff_1991_2001 = (rang_2001 - rang_1991)/(ncities-1),
+                     diff_2001_2011 = (rang_2011 - rang_2001)/(ncities-1)) %>%
+              select(rowid, Name, Country, diff_1961_1971:diff_2001_2011) %>%
+              pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = "periods", values_to = "rangdiff"), 
+            by = c("periods", "rowid", "Name", "Country")) %>%
+  mutate(periods = str_sub(string = periods, start = 6, end = 14)) %>%
+  filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO"))
+
+tau_x <- tau_x %>%
+  mutate(mu_x = tau_ville-mean_tau_x)
+
+
+#### distrib ####
+tau_x %>%
+  filter(Name != 'Geesthacht') %>%
+  ggplot(aes(x = mu_x, y = rangdiff)) +
+  geom_point(size = 0.3, alpha = 0.7, color = 'darkorange') +
+  scale_x_continuous(name = expression(paste(mu, "x"))) +
+  scale_y_continuous(name = expression(paste(Delta, "r"))) +
+  # ggpmisc::stat_poly_line(color = "grey40", size = 0.2) +
+  # ggpmisc::stat_poly_eq(aes(label = paste(after_stat(eq.label),
+  #                                         after_stat(rr.label), sep = "*\", \"*")),
+  #                       size = 2, label.x = "right") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 6)) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB") +
+  facet_grid(periods~Country, scales = "free")
+
+ggsave(filename = "ranking_exploration/mux-deltar-countries.png", plot = last_plot(),
+       width = 24, height = 21, units = 'cm')
+
+#### quadrants ####
+tau_x <- tau_x %>%
+  mutate(reference = case_when(
+    mu_x > 0 & rangdiff > 0 ~ "Quadrant 1",
+    mu_x > 0 & rangdiff < 0 ~ "Quadrant 2",
+    mu_x < 0 & rangdiff < 0 ~ "Quadrant 3",
+    TRUE ~ "Quadrant 4"
+  ))
+
+tau_x %>%
+  filter(Name != 'Geesthacht') %>%
+  group_by(Country, periods, reference) %>%
+  summarise(n = n()) %>%
+  mutate(freq = n/sum(n)) %>%
+  ggplot(mapping = aes(y = freq, x = periods, fill = reference)) +
+  geom_bar(stat = "identity") +
+  ggthemes::scale_fill_tableau(palette = "Tableau 10") +
+  ylab("Frequency") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 5), axis.title.x = element_blank()) +
+  facet_wrap(~Country) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = bquote("Distribution of cities according to" ~ paste(mu, x) ~ 'and' ~ paste(Delta, r)))
+
+ggsave(filename = "ranking_exploration/mux-deltar-countries-distribution.png", plot = last_plot(),
+       width = 21, height = 18, units = 'cm')
+
+#### distributions ####
+sdrang <- tau_x %>%
+  group_by(Country, periods) %>%
+  summarise(moyennerang = mean(rangdiff, na.rm = TRUE),
+            sdrang = sd(rangdiff))
+
+rangdiffusion_saut <- tau_x %>%
+  left_join(x = ., y = sdrang, by = c("Country", "periods")) %>%
+  mutate(diffusion_saut = case_when(
+    rangdiff < (moyennerang - sdrang) | rangdiff > (moyennerang + sdrang) ~ "jump",
+    TRUE ~ "diffusion"
+  ))
+
+rangdiffusion_saut %>%
+  filter(Name != 'Geesthacht') %>%
+  rename(`based on\ndelta r sd` = diffusion_saut) %>%
+  ggplot(mapping = aes(x = abs(mu_x), color = `based on\ndelta r sd`, fill = `based on\ndelta r sd`)) +
+  geom_density(alpha = 0.2, size = 0.5) +
+  scale_x_continuous(trans = "log10", name = expression(paste("|", mu, "x", "|"))) +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 5)) +
+  facet_grid(periods~Country, scales = "free_y") +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = bquote("Distribution of" ~ paste(mu, x) ~ 'according to' ~ paste(Delta, r)))
+
+ggsave(filename = "ranking_exploration/mux-deltar-diff-jump-distribsd.png", plot = last_plot(),
+       width = 25, height = 16, units = 'cm')
+
+
+
+#### lambda x et delta r ####
+lambda_x <- dk_countries_tradeve %>%
+  rowid_to_column() %>%
+  group_by(Country) %>%
+  mutate(diff_1961_1971 = (Pop_1971 - Pop_1961)/Pop_1961,
+         diff_1971_1981 = (Pop_1981 - Pop_1971)/Pop_1971,
+         diff_1981_1991 = (Pop_1991 - Pop_1981)/Pop_1981,
+         diff_1991_2001 = (Pop_2001 - Pop_1991)/Pop_1991,
+         diff_2001_2011 = (Pop_2011 - Pop_2001)/Pop_2001) %>%
+  pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = 'periods', values_to = 'tau_ville') %>%
+  select(rowid, Name, Country, periods, tau_ville) %>%
+  left_join(x = ., y = dk_countries_tradeve %>%
+              rowid_to_column() %>%
+              mutate(ncities = n()) %>%
+              ungroup() %>%
+              mutate(diff_1961_1971 = (rang_1971 - rang_1961)/(ncities-1),
+                     diff_1971_1981 = (rang_1981 - rang_1971)/(ncities-1),
+                     diff_1981_1991 = (rang_1991 - rang_1981)/(ncities-1),
+                     diff_1991_2001 = (rang_2001 - rang_1991)/(ncities-1),
+                     diff_2001_2011 = (rang_2011 - rang_2001)/(ncities-1)) %>%
+              select(rowid, Name, Country, diff_1961_1971:diff_2001_2011) %>%
+              pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = "periods", values_to = "rangdiff"), 
+            by = c("periods", "rowid", "Name", "Country")) %>%
+  mutate(periods = str_sub(string = periods, start = 6, end = 14)) %>%
+  filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO"))
+
+theta_t <- dk_countries_tradeve %>%
+  select(Country, Pop_1961:Pop_2011) %>%
+  group_by(Country) %>%
+  summarise_all(.funs = ~ sum(., na.rm = TRUE)) %>%
+  mutate(diff_1961_1971 = (Pop_1971 - Pop_1961)/Pop_1961,
+         diff_1971_1981 = (Pop_1981 - Pop_1971)/Pop_1971,
+         diff_1981_1991 = (Pop_1991 - Pop_1981)/Pop_1981,
+         diff_1991_2001 = (Pop_2001 - Pop_1991)/Pop_1991,
+         diff_2001_2011 = (Pop_2011 - Pop_2001)/Pop_2001) %>%
+  pivot_longer(cols = diff_1961_1971:diff_2001_2011, names_to = 'periods', values_to = 'var_pays') %>%
+  select(Country, periods, var_pays) %>%
+  mutate(periods = str_sub(string = periods, start = 6, end = 14))
+
+lambda_x <- lambda_x %>%
+  ungroup() %>%
+  left_join(x = ., y = theta_t, by = c('Country', 'periods')) %>%
+  mutate(lambda_ville = tau_ville - var_pays)
+
+
+#### distrib ####
+lambda_x %>%
+  filter(Name != 'Geesthacht') %>%
+  ggplot(aes(x = lambda_ville, y = rangdiff)) +
+  geom_point(size = 0.3, alpha = 0.7, color = 'darkorange') +
+  scale_x_continuous(name = expression(paste(lambda, "x"))) +
+  scale_y_continuous(name = expression(paste(Delta, "r"))) +
+  # ggpmisc::stat_poly_line(color = "grey40", size = 0.2) +
+  # ggpmisc::stat_poly_eq(aes(label = paste(after_stat(eq.label),
+  #                                         after_stat(rr.label), sep = "*\", \"*")),
+  #                       size = 2, label.x = "right") +
+  theme_bw() +
+  theme(axis.text = element_text(size = 6)) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB") +
+  facet_grid(periods~Country, scales = "free")
+
+ggsave(filename = "ranking_exploration/lambdax-deltar-countries.png", plot = last_plot(),
+       width = 24, height = 21, units = 'cm')
+
+#### quadrants ####
+lambda_x <- lambda_x %>%
+  mutate(reference = case_when(
+    lambda_ville > 0 & rangdiff > 0 ~ "Quadrant 1",
+    lambda_ville > 0 & rangdiff < 0 ~ "Quadrant 2",
+    lambda_ville < 0 & rangdiff < 0 ~ "Quadrant 3",
+    TRUE ~ "Quadrant 4"
+  ))
+
+lambda_x %>%
+  filter(Name != 'Geesthacht') %>%
+  group_by(Country, periods, reference) %>%
+  summarise(n = n()) %>%
+  mutate(freq = n/sum(n)) %>%
+  ggplot(mapping = aes(y = freq, x = periods, fill = reference)) +
+  geom_bar(stat = "identity") +
+  ggthemes::scale_fill_tableau(palette = "Tableau 10") +
+  ylab("Frequency") +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 5), axis.title.x = element_blank()) +
+  facet_wrap(~Country) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = bquote("Distribution of cities according to" ~ paste(lambda, x) ~ 'and' ~ paste(Delta, r)))
+
+ggsave(filename = "ranking_exploration/lambdax-deltar-countries-distribution.png", plot = last_plot(),
+       width = 21, height = 18, units = 'cm')
+
+#### distributions ####
+sdrang <- lambda_x %>%
+  group_by(Country, periods) %>%
+  summarise(moyennerang = mean(rangdiff, na.rm = TRUE),
+            sdrang = sd(rangdiff))
+
+rangdiffusion_saut <- lambda_x %>%
+  left_join(x = ., y = sdrang, by = c("Country", "periods")) %>%
+  mutate(diffusion_saut = case_when(
+    rangdiff < (moyennerang - sdrang) | rangdiff > (moyennerang + sdrang) ~ "jump",
+    TRUE ~ "diffusion"
+  ))
+
+rangdiffusion_saut %>%
+  filter(Name != 'Geesthacht') %>%
+  rename(`based on\ndelta r sd` = diffusion_saut) %>%
+  ggplot(mapping = aes(x = abs(lambda_ville), color = `based on\ndelta r sd`, fill = `based on\ndelta r sd`)) +
+  geom_density(alpha = 0.2, size = 0.5) +
+  scale_x_continuous(trans = "log10", name = expression(paste("|", lambda, "x", "|"))) +
+  theme_bw() +
+  theme(axis.text.x = element_text(size = 5)) +
+  facet_grid(periods~Country, scales = "free_y") +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB",
+       title = bquote("Distribution of" ~ paste(lambda, x) ~ 'according to' ~ paste(Delta, r)))
+
+ggsave(filename = "ranking_exploration/lambdax-deltar-diff-jump-distribsd.png", plot = last_plot(),
+       width = 25, height = 16, units = 'cm')
+
+
+
+
 
