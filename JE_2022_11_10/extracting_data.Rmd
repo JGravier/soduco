@@ -1,0 +1,126 @@
+---
+title: "Extracting data from PostgreSQL soduco DB"
+author: "Julie Gravier"
+date: "2022-10-27"
+output:
+  html_document:
+    df_print: paged
+---
+
+### Packages
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(dbplyr)
+library(DBI)
+library(RPostgreSQL)
+library(patchwork)
+library(sf)
+library(stringi)
+```
+
+### Connection to Postgre DB
+```{r}
+# unsee pswd
+source(file = "password.R")
+```
+
+Connexions
+```{r}
+dsn_name <- "soduco"
+dsn_hostname <- "geohistoricaldata.org"
+dsn_port <- "5432"
+dsn_uid <- "postgres"
+
+tryCatch({
+  drv <- dbDriver(drvName = "PostgreSQL")
+  print("Connecting to Database…")
+  connec <- dbConnect(drv, 
+                      dbname = dsn_name,
+                      host = dsn_hostname, 
+                      port = dsn_port,
+                      user = dsn_uid, 
+                      password = dsn_pswd)
+  print("Database Connected!")
+},
+error=function(cond) {
+  print("Unable to connect to Database.")
+})
+```
+
+### Connection to useful tables
+```{r, warning=FALSE}
+# elements = what contain boxes?
+elements <- tbl(connec, in_schema("directories", "elements"))
+head(elements)
+
+# geocoding = made with geocodeur & gazeteers
+geocoding <- tbl(connec, in_schema("directories", "geocoding"))
+head(geocoding)
+```
+
+### Data on list types and books
+Known from Pascal's work (in progress) on github/soduco
+```{r}
+listetype <- read.csv(file = "directories_adress_lists_index_20220201.csv", 
+                        stringsAsFactors = FALSE, encoding = "UTF-8") %>%
+  as_tibble()
+```
+
+### Tables elements as entries with geocoding
+This left_join is enough because all possible geolocations are created as rows and preserved even if empty in the DB.
+```{r}
+activity_geocoded <- geocoding %>%
+  left_join(x = ., y = elements %>%
+              filter(type == "ENTRY"),
+            by = c("entry_id" = "index")) %>%
+  filter(directory %in% c(
+    "Lamy_1839", "Didot_1845a", "Didot_1845b", "Didot_1855a", "DidotBottin_1864a", "DidotBottin_1875",
+    "DidotBottin_1885a", "DidotBottin_1893a", "DidotBottin_1904a"
+  )
+  )
+
+show_query(activity_geocoded)
+head(activity_geocoded)
+count(activity_geocoded)
+```
+
+
+### Selecting name lists only
+```{r}
+activity_geocoded_listn <- activity_geocoded %>%
+  collect() %>%
+  left_join(x = ., y = listetype %>%
+              select(Code_fichier, liste_type, npage_pdf_d, npage_pdf_f), 
+            by = c("directory" = "Code_fichier")) %>%
+  mutate(sup_debut = if_else(
+    condition = view >= npage_pdf_d,
+    true = "dans liste",
+    false = "hors liste"
+  )) %>%
+  mutate(inf_fin = if_else(
+    condition = view <= npage_pdf_f,
+    true = "dans liste",
+    false = "hors liste"
+  )) %>%
+  mutate(dans_liste = if_else(
+    sup_debut == "dans liste" & inf_fin == "dans liste",
+    "dans liste", "hors liste"
+  )) %>%
+  filter(dans_liste == "dans liste") %>%
+  select(-sup_debut:-dans_liste) %>%
+  filter(liste_type == "ListNoms") %>%
+  # the version of the data
+  mutate(version = "v2:2022-06-20")
+
+nrow(activity_geocoded_listn)
+```
+
+### Output in .xlsx format
+```{r}
+openxlsx::write.xlsx(x = activity_geocoded_listn, file = "geocoded_entries.xlsx", overwrite = TRUE)
+```
+
+
+```{r}
+dbDisconnect(conn = connec)
+```
