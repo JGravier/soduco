@@ -13,9 +13,6 @@ library(tidyverse)
 library(dbplyr)
 library(DBI)
 library(RPostgreSQL)
-library(patchwork)
-library(sf)
-library(stringi)
 ```
 
 ### Connection to Postgre DB
