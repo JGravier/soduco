@@ -96,7 +96,7 @@ leaflet(date_1839) %>%
 
 #### Mapping entries: 1845
 Entries only in the Ile-de-France region
-```{r}
+```{r, echo=FALSE, message=FALSE}
 idf <- st_read(dsn = "iledefranceosm.gpkg")
 ```
 
@@ -113,81 +113,11 @@ leaflet(date_1845) %>%
   addCircleMarkers(radius = 1, color = "darkorange")
 ```
 
-#### Mapping entries: 1855
+#### Mapping entries: 1875
 ```{r out.width='100%', echo=FALSE}
 date_1845 <- geocoded_entries %>%
   filter(!is.na(precise.geom)) %>%
-  filter(published == 1845) %>%
-  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
-  st_transform(x = ., crs = 4326) %>%
-  st_filter(x = ., y = idf, .predicate = st_within)
-
-leaflet(date_1845) %>% 
-  addTiles() %>%
-  addCircleMarkers(radius = 1, color = "darkorange")
-```
-
-#### Mapping entries: 1855
-```{r out.width='100%', echo=FALSE}
-date_1845 <- geocoded_entries %>%
-  filter(!is.na(precise.geom)) %>%
-  filter(published == 1845) %>%
-  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
-  st_transform(x = ., crs = 4326) %>%
-  st_filter(x = ., y = idf, .predicate = st_within)
-
-leaflet(date_1845) %>% 
-  addTiles() %>%
-  addCircleMarkers(radius = 1, color = "darkorange")
-```
-
-### Mapping entries: 1864
-```{r out.width='100%', echo=FALSE}
-date_1845 <- geocoded_entries %>%
-  filter(!is.na(precise.geom)) %>%
-  filter(published == 1845) %>%
-  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
-  st_transform(x = ., crs = 4326) %>%
-  st_filter(x = ., y = idf, .predicate = st_within)
-
-leaflet(date_1845) %>% 
-  addTiles() %>%
-  addCircleMarkers(radius = 1, color = "darkorange")
-```
-
-### Mapping entries: 1875
-```{r out.width='100%', echo=FALSE}
-date_1845 <- geocoded_entries %>%
-  filter(!is.na(precise.geom)) %>%
-  filter(published == 1845) %>%
-  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
-  st_transform(x = ., crs = 4326) %>%
-  st_filter(x = ., y = idf, .predicate = st_within)
-
-leaflet(date_1845) %>% 
-  addTiles() %>%
-  addCircleMarkers(radius = 1, color = "darkorange")
-```
-
-### Mapping entries: 1885
-```{r out.width='100%', echo=FALSE}
-date_1845 <- geocoded_entries %>%
-  filter(!is.na(precise.geom)) %>%
-  filter(published == 1845) %>%
-  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
-  st_transform(x = ., crs = 4326) %>%
-  st_filter(x = ., y = idf, .predicate = st_within)
-
-leaflet(date_1845) %>% 
-  addTiles() %>%
-  addCircleMarkers(radius = 1, color = "darkorange")
-```
-
-### Mapping entries: 1893
-```{r out.width='100%', echo=FALSE}
-date_1845 <- geocoded_entries %>%
-  filter(!is.na(precise.geom)) %>%
-  filter(published == 1845) %>%
+  filter(published == 1875) %>%
   st_as_sf(wkt = "precise.geom", crs = 2154) %>%
   st_transform(x = ., crs = 4326) %>%
   st_filter(x = ., y = idf, .predicate = st_within)
@@ -201,7 +131,7 @@ leaflet(date_1845) %>%
 ```{r out.width='100%', echo=FALSE}
 date_1845 <- geocoded_entries %>%
   filter(!is.na(precise.geom)) %>%
-  filter(published == 1845) %>%
+  filter(published == 1904) %>%
   st_as_sf(wkt = "precise.geom", crs = 2154) %>%
   st_transform(x = ., crs = 4326) %>%
   st_filter(x = ., y = idf, .predicate = st_within)
