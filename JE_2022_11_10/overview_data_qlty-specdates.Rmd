@@ -1,0 +1,212 @@
+---
+title: "General view of indicators linked to ‘data quality’"
+author: "Julie Gravier"
+date: "2022-10-27"
+output:
+  html_document:
+    df_print: paged
+---
+
+### Packages
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(sf)
+library(leaflet)
+```
+
+### Read geocoded entries data
+```{r}
+geocoded_entries <- read_excel(path = "geocoded_entries.xlsx", col_names = TRUE)
+
+head(geocoded_entries)
+```
+
+### Geocoded information
+What is the proportion of addresses detected from NER which are precisely geocoded?
+```{r}
+geocoded_entries %>%
+  select(precise.geom, entry_id) %>%
+  mutate(geometry = if_else(is.na(precise.geom), FALSE, TRUE)) %>%
+  group_by(geometry) %>%
+  summarise(n = n()) %>%
+  mutate(freq = n/sum(n)) %>%
+  ggplot(mapping = aes(x = geometry, y = freq)) + # y as frequency
+  geom_bar(stat = "identity") +
+  theme_bw() +
+  ggtitle("<LOC> and <CARD> elements precisely geocoded from the entries") +
+  labs(caption = "ANR SoDUCo. Data: GeoHistoricalData")
+```
+
+What is the proportion of entries which are precisely geocoded?
+```{r}
+order1 <- geocoded_entries %>%
+  select(precise.geom, entry_id, order) %>%
+  mutate(geometry = if_else(is.na(precise.geom), "FAUX", "VRAI")) %>%
+  group_by(entry_id) %>%
+  mutate(order_n = n()) %>%
+  filter(order_n == 1) %>%
+  ungroup() %>%
+  group_by(geometry) %>%
+  summarise(n = n()) %>%
+  mutate(freq = n/sum(n)) %>%
+  mutate(order_n = 1) %>%
+  select(order_n, geometry:freq)
+
+notorder1 <- geocoded_entries %>%
+  select(precise.geom, entry_id, order) %>%
+  mutate(geometry = if_else(is.na(precise.geom), "FAUX", "VRAI")) %>%
+  group_by(entry_id) %>%
+  mutate(order_n = n()) %>%
+  filter(order_n != 1) %>% 
+  ungroup() %>% 
+  group_by(order_n) %>% 
+  summarise(FAUX = sum(str_count(string = geometry, pattern = "FAUX")), 
+            VRAI = sum(str_count(string = geometry, pattern = "VRAI"))) %>%
+  pivot_longer(cols = FAUX:VRAI, names_to = "geometry", values_to = "n") %>%
+  group_by(order_n) %>%
+  mutate(freq = n/sum(n))
+
+# very few entries with more than 8 localisations
+order1 %>% bind_rows(notorder1) %>% filter(order_n > 8) %>% summarise(countelements = sum(n))
+
+order1 %>%
+  bind_rows(notorder1) %>% 
+  filter(order_n < 8) %>%
+  ggplot(mapping = aes(x = geometry, y = freq, fill = as.character(order_n))) + # y as frequency
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_bw() +
+  ggtitle("Entries precisely geocoded") +
+  labs(caption = "ANR SoDUCo. Data: GeoHistoricalData")
+```
+
+#### Mapping entries: 1839
+As we can see, some geocoding are far from Paris as the entries in street St-Martin located on the island.
+```{r out.width='100%', echo=FALSE}
+date_1839 <- geocoded_entries %>%
+  filter(!is.na(precise.geom)) %>%
+  filter(published == 1839) %>%
+  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
+  st_transform(x = ., crs = 4326)
+
+leaflet(date_1839) %>% 
+  addTiles() %>%
+  addCircleMarkers(radius = 1, color = "darkorange")
+```
+
+#### Mapping entries: 1845
+Entries only in the Ile-de-France region
+```{r}
+idf <- st_read(dsn = "iledefranceosm.gpkg")
+```
+
+```{r out.width='100%', echo=FALSE}
+date_1845 <- geocoded_entries %>%
+  filter(!is.na(precise.geom)) %>%
+  filter(published == 1845) %>%
+  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
+  st_transform(x = ., crs = 4326) %>%
+  st_filter(x = ., y = idf, .predicate = st_within)
+
+leaflet(date_1845) %>% 
+  addTiles() %>%
+  addCircleMarkers(radius = 1, color = "darkorange")
+```
+
+#### Mapping entries: 1855
+```{r out.width='100%', echo=FALSE}
+date_1845 <- geocoded_entries %>%
+  filter(!is.na(precise.geom)) %>%
+  filter(published == 1845) %>%
+  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
+  st_transform(x = ., crs = 4326) %>%
+  st_filter(x = ., y = idf, .predicate = st_within)
+
+leaflet(date_1845) %>% 
+  addTiles() %>%
+  addCircleMarkers(radius = 1, color = "darkorange")
+```
+
+#### Mapping entries: 1855
+```{r out.width='100%', echo=FALSE}
+date_1845 <- geocoded_entries %>%
+  filter(!is.na(precise.geom)) %>%
+  filter(published == 1845) %>%
+  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
+  st_transform(x = ., crs = 4326) %>%
+  st_filter(x = ., y = idf, .predicate = st_within)
+
+leaflet(date_1845) %>% 
+  addTiles() %>%
+  addCircleMarkers(radius = 1, color = "darkorange")
+```
+
+### Mapping entries: 1864
+```{r out.width='100%', echo=FALSE}
+date_1845 <- geocoded_entries %>%
+  filter(!is.na(precise.geom)) %>%
+  filter(published == 1845) %>%
+  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
+  st_transform(x = ., crs = 4326) %>%
+  st_filter(x = ., y = idf, .predicate = st_within)
+
+leaflet(date_1845) %>% 
+  addTiles() %>%
+  addCircleMarkers(radius = 1, color = "darkorange")
+```
+
+### Mapping entries: 1875
+```{r out.width='100%', echo=FALSE}
+date_1845 <- geocoded_entries %>%
+  filter(!is.na(precise.geom)) %>%
+  filter(published == 1845) %>%
+  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
+  st_transform(x = ., crs = 4326) %>%
+  st_filter(x = ., y = idf, .predicate = st_within)
+
+leaflet(date_1845) %>% 
+  addTiles() %>%
+  addCircleMarkers(radius = 1, color = "darkorange")
+```
+
+### Mapping entries: 1885
+```{r out.width='100%', echo=FALSE}
+date_1845 <- geocoded_entries %>%
+  filter(!is.na(precise.geom)) %>%
+  filter(published == 1845) %>%
+  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
+  st_transform(x = ., crs = 4326) %>%
+  st_filter(x = ., y = idf, .predicate = st_within)
+
+leaflet(date_1845) %>% 
+  addTiles() %>%
+  addCircleMarkers(radius = 1, color = "darkorange")
+```
+
+### Mapping entries: 1893
+```{r out.width='100%', echo=FALSE}
+date_1845 <- geocoded_entries %>%
+  filter(!is.na(precise.geom)) %>%
+  filter(published == 1845) %>%
+  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
+  st_transform(x = ., crs = 4326) %>%
+  st_filter(x = ., y = idf, .predicate = st_within)
+
+leaflet(date_1845) %>% 
+  addTiles() %>%
+  addCircleMarkers(radius = 1, color = "darkorange")
+```
+
+#### Mapping entries: 1904
+```{r out.width='100%', echo=FALSE}
+date_1845 <- geocoded_entries %>%
+  filter(!is.na(precise.geom)) %>%
+  filter(published == 1845) %>%
+  st_as_sf(wkt = "precise.geom", crs = 2154) %>%
+  st_transform(x = ., crs = 4326) %>%
+  st_filter(x = ., y = idf, .predicate = st_within)
+
+leaflet(date_1845) %>% 
+  addTiles() %>%
+  addCircleMarkers(radius = 1, color = "darkorange")
+```
