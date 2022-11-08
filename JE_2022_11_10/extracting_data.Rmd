@@ -72,7 +72,7 @@ activity_geocoded <- geocoding %>%
             by = c("entry_id" = "index")) %>%
   filter(directory %in% c(
     "Lamy_1839", "Didot_1845a", "Didot_1845b", "Didot_1855a", "DidotBottin_1864a", "DidotBottin_1875",
-    "DidotBottin_1885a", "DidotBottin_1893a", "DidotBottin_1904a"
+    "DidotBottin_1885a", "DidotBottin_1893a", "DidotBottin_1902a", "DidotBottin_1903a", "DidotBottin_1904a", "DidotBottin_1905a"
   )
   )
 

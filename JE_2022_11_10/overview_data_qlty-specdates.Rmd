@@ -25,14 +25,47 @@ head(geocoded_entries)
 ### Geocoded information
 What is the proportion of addresses detected from NER which are precisely geocoded?
 ```{r}
+# general overview
 geocoded_entries %>%
   select(precise.geom, entry_id) %>%
   mutate(geometry = if_else(is.na(precise.geom), FALSE, TRUE)) %>%
   group_by(geometry) %>%
   summarise(n = n()) %>%
   mutate(freq = n/sum(n)) %>%
+  ungroup() %>%
   ggplot(mapping = aes(x = geometry, y = freq)) + # y as frequency
   geom_bar(stat = "identity") +
+  theme_bw() +
+  ggtitle("<LOC> and <CARD> elements precisely geocoded from the entries") +
+  labs(caption = "ANR SoDUCo. Data: GeoHistoricalData")
+
+# specific dates
+geocoded_entries %>%
+  select(precise.geom, entry_id, published) %>%
+  mutate(geometry = if_else(is.na(precise.geom), FALSE, TRUE),
+         published = as.character(published)) %>%
+  group_by(geometry, published) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  group_by(published) %>%
+  mutate(freq = n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(mapping = aes(x = geometry, y = freq, fill = published)) + # y as frequency
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_bw() +
+  ggtitle("<LOC> and <CARD> elements precisely geocoded from the entries") +
+  labs(caption = "ANR SoDUCo. Data: GeoHistoricalData")
+
+# specific dates: n elements
+geocoded_entries %>%
+  select(precise.geom, entry_id, published) %>%
+  mutate(geometry = if_else(is.na(precise.geom), FALSE, TRUE),
+         published = as.character(published)) %>%
+  group_by(geometry, published) %>%
+  summarise(n = n()) %>%
+  ungroup() %>%
+  ggplot(mapping = aes(x = geometry, y = n, fill = published)) + # y as frequency
+  geom_bar(stat = "identity", position = "dodge") +
   theme_bw() +
   ggtitle("<LOC> and <CARD> elements precisely geocoded from the entries") +
   labs(caption = "ANR SoDUCo. Data: GeoHistoricalData")
@@ -96,7 +129,7 @@ leaflet(date_1839) %>%
 
 #### Mapping entries: 1845
 Entries only in the Ile-de-France region
-```{r, echo=FALSE, message=FALSE}
+```{r, echo=FALSE, message=FALSE, results=FALSE}
 idf <- st_read(dsn = "iledefranceosm.gpkg")
 ```
 
@@ -140,3 +173,5 @@ leaflet(date_1845) %>%
   addTiles() %>%
   addCircleMarkers(radius = 1, color = "darkorange")
 ```
+
+
