@@ -107,6 +107,44 @@ pop_all_long <- before_1860_paris %>%
       ))
   )
 
+#### quartiers: spatial data
+quartiers_vasserot <- st_read(dsn = "spatial_data/vasserots_quartiers_L93.shp") %>%
+  rename(id_alpage = ID_ALPAGE)
+
+quartiers_poubelle <- st_read(dsn = "spatial_data/quartiers_atlas_poubelle_1888.shp") %>%
+  rename(id = fid)
+
+pop_quartier_long <- pop_before_1860 %>%
+  select(id_alpage, `1836_S001_p8_pop_droit`:`1856_S001_p8_pop_droit`) %>%
+  pivot_longer(cols = `1836_S001_p8_pop_droit`:`1856_S001_p8_pop_droit`, 
+               names_to = "date", values_to = "pop") %>%
+  mutate(date = str_sub(string = date, start = 1, end = 4)) %>%
+  mutate(published = case_when(
+    date == 1841 ~ 1839,
+    date == 1846 ~ 1845,
+    date == 1856 ~ 1855,
+    TRUE ~ 0
+  )) %>%
+  rename(id = id_alpage) %>%
+  bind_rows(
+    pop_after_1860 %>%
+      select(id, `1866_S001_pop_droit`:`1896_S005_pop_fait`) %>%
+      pivot_longer(cols = `1866_S001_pop_droit`:`1896_S005_pop_fait`,
+                   names_to = "date", values_to = "pop") %>%
+      mutate(droifait = str_sub(string = date, start = 15, end = 20)) %>%
+      mutate(date = str_sub(string = date, start = 1, end = 4)) %>%
+      filter(droifait == "droit") %>%
+      select(-droifait) %>%
+      mutate(published = case_when(
+        date == 1866 ~ 1864,
+        date == 1876 ~ 1875,
+        date == 1886 ~ 1885,
+        date == 1891 ~ 1893,
+        TRUE ~ 0
+      )) %>%
+      mutate(id = as.character(id))
+  )
+
 #### adding informations from extracting NER elements patterns ####
 general_data_addin <- general_data %>%
   # when new line in string pattern "\n", function pattern does not work
@@ -237,7 +275,7 @@ netwokrs_carto_2 <- netwokrs_carto %>%
 
 ggplot() +
   geom_sf(data = netwokrs_carto_2, color = "grey70", size = 0.2) +
-  geom_sf(data = liste_snap_as_one_sf, alpha = 0.7, color = "red") +
+  geom_sf(data = liste_snap_as_one_sf, alpha = 0.7, color = "red", size = 0.4) +
   ggspatial::annotation_scale(location = "tr",  width_hint = 0.2) +
   ggthemes::theme_igray() +
   theme(axis.text.x = element_blank(),
@@ -250,7 +288,7 @@ ggplot() +
   facet_wrap(~source_annee, nrow = 2)
 
 ggsave(filename = "outputs_visuals/bakers_cartography.png", plot = last_plot(), 
-       dpi = 300, width = 25, height = 25, units = "cm")
+       dpi = 300, width = 25, height = 18, units = "cm")
 
 # writting for backgroundjob
 saveRDS(object = liste_patterns_snap, file = "data_for_bckgrd/bakers_list.rds")
@@ -359,7 +397,7 @@ liste_snap_as_one_sf <- do.call(rbind, liste_patterns_snap)
 
 ggplot() +
   geom_sf(data = netwokrs_carto_2, color = "grey70", size = 0.2) +
-  geom_sf(data = liste_snap_as_one_sf, alpha = 0.7, color = "red") +
+  geom_sf(data = liste_snap_as_one_sf, alpha = 0.7, color = "red", size = 0.4) +
   ggspatial::annotation_scale(location = "tr",  width_hint = 0.2) +
   ggthemes::theme_igray() +
   theme(axis.text.x = element_blank(),
@@ -372,7 +410,7 @@ ggplot() +
   facet_wrap(~source_annee, nrow = 2)
 
 ggsave(filename = "outputs_visuals/grocers_cartography.png", plot = last_plot(), 
-       dpi = 300, width = 25, height = 25, units = "cm")
+       dpi = 300, width = 25, height = 18, units = "cm")
 
 # writting for backgroundjob
 saveRDS(object = liste_patterns_snap, file = "data_for_bckgrd/grocers_list.rds")
@@ -409,6 +447,59 @@ ggpubr::annotate_figure(distribution, top = "Grocers - 'épiciers'", fig.lab.siz
 ggsave(filename = "outputs_visuals/grocers_matrices_distribution.png", plot = last_plot(), 
        dpi = 300, width = 25, height = 17, units = "cm")
 
+#### time analysis with pop by quartier ####
+pop_quartier_long1 <- pop_quartier_long %>%
+  filter(date < 1860) %>%
+  left_join(x = ., y = quartiers_vasserot %>% select(id_alpage), by = c("id" = "id_alpage")) %>%
+  st_as_sf()
+
+pop_quartier_long2 <- pop_quartier_long %>%
+  filter(date > 1860) %>%
+  left_join(x = ., y = quartiers_poubelle %>% select(id) %>% mutate(id = as.character(id)), by = "id") %>%
+  st_as_sf()
+
+
+# liste pour appariement date et inclusion spatiale
+inclusion_quartier <- list()
+
+for (i in 1:length(liste_patterns_profession)) {
+  
+  if (liste_patterns_profession[[i]]$published[1] < 1860){
+    sf_for_inclusion <- st_join(x = liste_patterns_profession[[i]], 
+            y = pop_quartier_long1 %>% 
+              filter(published == liste_patterns_profession[[i]]$published[1]) %>%
+              select(-published), # inclusion in old arrondissements
+            .predicate = st_within)
+  } else {
+    sf_for_inclusion <- st_join(x = liste_patterns_profession[[i]], 
+            y = pop_quartier_long2 %>% 
+              filter(published == liste_patterns_profession[[i]]$published[1]) %>%
+              select(-published), # inclusion in new arrondissements
+            .predicate = st_within)
+  }
+  
+  inclusion_quartier[[i]] <- sf_for_inclusion
+  
+}
+
+inclusion_quartier_tibble <- do.call(rbind, inclusion_quartier) %>% # as one sf
+  st_drop_geometry() %>%
+  group_by(published, id.y) %>%
+  summarise(n = n())
+
+inclusion_quartier_tibble %>%
+  rename(id = id.y) %>%
+  left_join(x = ., y = pop_quartier_long, by = c("id", "published")) %>%
+  mutate(n_pop = n/pop*10000) %>%
+  mutate(published = as.character(published)) %>%
+  ggplot(aes(x = n_pop, y = 'n_pop', fill = published, color = published)) +
+  geom_boxplot(alpha = 0.2) +
+  ggthemes::scale_fill_colorblind() +
+  ggthemes::scale_color_colorblind() +
+  theme_bw() +
+  theme(axis.title = element_blank(), axis.text.y = element_blank()) +
+  labs(subtitle = "N grocers per 10,000 inhabitants",
+       caption = "J. Gravier 2022 | ANR SoDUCo. Data: Annuaires, GeoHistoricalData")
 
 #### bijoutiers ####
 # creation of dataset specific to bakers
@@ -484,7 +575,7 @@ liste_snap_as_one_sf <- do.call(rbind, liste_patterns_snap)
 
 ggplot() +
   geom_sf(data = netwokrs_carto_2, color = "grey70", size = 0.2) +
-  geom_sf(data = liste_snap_as_one_sf, alpha = 0.7, color = "red") +
+  geom_sf(data = liste_snap_as_one_sf, alpha = 0.7, color = "red", size = 0.4) +
   ggspatial::annotation_scale(location = "tr",  width_hint = 0.2) +
   ggthemes::theme_igray() +
   theme(axis.text.x = element_blank(),
@@ -497,14 +588,14 @@ ggplot() +
   facet_wrap(~source_annee, nrow = 2)
 
 ggsave(filename = "outputs_visuals/jewellers_cartography.png", plot = last_plot(), 
-       dpi = 300, width = 25, height = 25, units = "cm")
+       dpi = 300, width = 25, height = 18, units = "cm")
 
 # writting for backgroundjob
 saveRDS(object = liste_patterns_snap, file = "data_for_bckgrd/jewellers_list.rds")
 
 ### observed VS simulated data distances ####
 # reading results from background job: distances matrices
-tableau_plot <- readRDS("data_for_bckgrd/tableau_plot_grocers.rds")
+tableau_plot <- readRDS("data_for_bckgrd/tableau_plot_jewellers.rds")
 
 # plotting data
 # !!! auto warning !!! breaks of axis x and y are here chosen
@@ -520,7 +611,7 @@ for (i in 1:length(tableau_plot)) {
     ggthemes::scale_color_colorblind() +
     ggthemes::theme_igray() +
     scale_x_continuous(name = "Distance (in km)", breaks = c(seq(0,15,2.5)), limits = c(0,14)) +
-    scale_y_continuous(breaks = c(seq(0, 0.35, 0.1)), limits = c(0,0.35)) +
+    scale_y_continuous(breaks = c(seq(0, 0.47, 0.1)), limits = c(0,0.47)) +
     theme(axis.title = element_text(size = 10),
           axis.text = element_text(size = 8)) +
     ggtitle(tableau_plot[[i]]$source_annee[1])
@@ -529,24 +620,98 @@ for (i in 1:length(tableau_plot)) {
 distribution <- ggpubr::ggarrange(plotlist = plots_rss, 
                                   common.legend = TRUE, legend = c("bottom"), nrow = 2, ncol = 4)
 
-ggpubr::annotate_figure(distribution, top = "Grocers - 'épiciers'", fig.lab.size = 15)
+ggpubr::annotate_figure(distribution, top = "Jewellers - 'bijoutiers'", fig.lab.size = 15)
 
-ggsave(filename = "outputs_visuals/grocers_matrices_distribution.png", plot = last_plot(), 
+ggsave(filename = "outputs_visuals/jewellers_matrices_distribution.png", plot = last_plot(), 
        dpi = 300, width = 25, height = 17, units = "cm")
 
+
+#### clustering visuals - gini ####
+sf_cutree <- st_read(dsn = "data_for_bckgrd/jewellers_data_sf_clustering_init.gpkg")
+
+cluster_composed_1 <- sf_cutree %>%
+  st_drop_geometry() %>%
+  group_by(source_annee, cluster) %>%
+  summarise(count = n()) %>%
+  filter(count != 1)
+
+sf_cutree <- sf_cutree %>%
+  left_join(y = cluster_composed_1, by = c("source_annee", "cluster")) %>%
+  filter(!is.na(count))
+
+### first cartography of clusters
+ggplot() +
+  geom_sf(data = reseau_poubelle_1888, color = "grey90", size = 0.2) +
+  geom_sf(data = sf_cutree, aes(color = cluster), alpha = 0.9, size = 0.4, show.legend = FALSE) +
+  geom_sf(data = sf_cutree %>% 
+            group_by(cluster, source_annee) %>% 
+            summarise() %>% st_convex_hull(), 
+          aes(color = cluster), show.legend = FALSE, alpha = 0.2, size = 0.2) +
+  ggspatial::annotation_scale(location = "tr",  width_hint = 0.2) +
+  ggthemes::theme_igray() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank()) +
+  facet_wrap(~source_annee, nrow = 2) +
+  ggtitle("Jewellers - 'bijoutiers'")
+
+ggsave(filename = "outputs_visuals/jewellers_cluster.png", plot = last_plot(), 
+       dpi = 300, width = 25, height = 17, units = "cm")
+
+
+#### gini on all clusters ####
+clustering_visu_generale <- sf_cutree %>%
+  st_drop_geometry() %>%
+  group_by(source_annee, cluster) %>%
+  summarise(count = n()) %>%
+  mutate(nb_activites_source = sum(count),
+         nb_cluster = max(as.numeric(cluster))) %>%
+  rowid_to_column()
+
+cluster_gini <- clustering_visu_generale %>%
+  group_by(source_annee, nb_activites_source, nb_cluster) %>%
+  summarise(gini = ineq::ineq(x = count, type = "Gini"))
+
+
+# visualization
+cluster_gini %>%
+  ggplot() +
+  geom_point(aes(x = gini, y = nb_activites_source, size = nb_cluster),
+             fill = "#2D6D66", color = "#2D6D66", alpha = 0.5) +
+  scale_radius(trans = "log10") +
+  geom_path(aes(x = gini, y = nb_activites_source), color = "#2D6D66",
+            arrow = arrow(ends = "last", type = "closed", angle = 20, length = unit(0.3, "cm"))) +
+  xlab("gini") +
+  scale_y_continuous(name = "N activities", breaks = c(seq(50, 1050, 100))) +
+  ggthemes::theme_igray() +
+  theme(legend.title = element_text(size = 10),
+        legend.text = element_text(size = 8)) +
+  labs(subtitle = "Jewellers - 'bijoutiers'", size = "n cluster")
+  
+ggsave(filename = "outputs_visuals/jewellers_cluster_gini.png", plot = last_plot(), 
+       dpi = 300, width = 15, height = 12, units = "cm")
 
 #### temporal analysis with population ####
 epicier %>%
   group_by(published) %>%
   summarise(n = n()) %>%
+  mutate(activity = "grocers") %>%
+  bind_rows(
+    bijoutier %>%
+      group_by(published) %>%
+      summarise(n = n()) %>%
+      mutate(activity = "jewellers")
+  ) %>%
   left_join(x = ., y = pop_all_long, by = "published") %>%
   mutate(n_pop = n/pop*10000) %>%
-  ggplot(aes(x = published, y = n_pop)) +
+  ggplot(aes(x = published, y = n_pop, color = activity)) +
   geom_line() +
   geom_point() +
-  ggthemes::scale_fill_economist() +
+  ggthemes::scale_color_economist() +
   theme(axis.title = element_blank()) +
-  labs(subtitle = "N grocers per 10,000 inhabitants - 'épiciers'",
+  labs(subtitle = "N activities per 10,000 inhabitants",
        caption = "J. Gravier 2022 | ANR SoDUCo. Data: Annuaires, GeoHistoricalData")
 
 

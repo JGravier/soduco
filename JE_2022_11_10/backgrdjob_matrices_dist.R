@@ -97,4 +97,4 @@ for (i in 1:length(liste_dist_pi_p)) {
 }
 
 # saving
-saveRDS(object = tableau_plot, file = "data_for_bckgrd/tableau_plot_grocers.rds")
+saveRDS(object = tableau_plot, file = "data_for_bckgrd/tableau_plot_jewellers.rds")
