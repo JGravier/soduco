@@ -1712,7 +1712,7 @@ created as rows and preserved even if empty in the DB.</p>
             by = c(&quot;entry_id&quot; = &quot;index&quot;)) %&gt;%
   filter(directory %in% c(
     &quot;Lamy_1839&quot;, &quot;Didot_1845a&quot;, &quot;Didot_1845b&quot;, &quot;Didot_1855a&quot;, &quot;DidotBottin_1864a&quot;, &quot;DidotBottin_1875&quot;,
-    &quot;DidotBottin_1885a&quot;, &quot;DidotBottin_1893a&quot;, &quot;DidotBottin_1902a&quot;, &quot;DidotBottin_1903a&quot;, &quot;DidotBottin_1904a&quot;, &quot;DidotBottin_1905a&quot;
+    &quot;DidotBottin_1885a&quot;, &quot;DidotBottin_1893a&quot;, &quot;DidotBottin_1904a&quot;
   )
   )
 
@@ -1761,7 +1761,7 @@ show_query(activity_geocoded)</code></pre>
 ##   ) &quot;RHS&quot;
 ##     ON (&quot;LHS&quot;.&quot;entry_id&quot; = &quot;RHS&quot;.&quot;index&quot;)
 ## ) &quot;q01&quot;
-## WHERE (&quot;directory&quot; IN (&#39;Lamy_1839&#39;, &#39;Didot_1845a&#39;, &#39;Didot_1845b&#39;, &#39;Didot_1855a&#39;, &#39;DidotBottin_1864a&#39;, &#39;DidotBottin_1875&#39;, &#39;DidotBottin_1885a&#39;, &#39;DidotBottin_1893a&#39;, &#39;DidotBottin_1902a&#39;, &#39;DidotBottin_1903a&#39;, &#39;DidotBottin_1904a&#39;, &#39;DidotBottin_1905a&#39;))</code></pre>
+## WHERE (&quot;directory&quot; IN (&#39;Lamy_1839&#39;, &#39;Didot_1845a&#39;, &#39;Didot_1845b&#39;, &#39;Didot_1855a&#39;, &#39;DidotBottin_1864a&#39;, &#39;DidotBottin_1875&#39;, &#39;DidotBottin_1885a&#39;, &#39;DidotBottin_1893a&#39;, &#39;DidotBottin_1904a&#39;))</code></pre>
 <pre class="r"><code>head(activity_geocoded)</code></pre>
 <pre><code>## Warning in postgresqlExecStatement(conn, statement, ...): RPosgreSQL warning:
 ## unrecognized PostgreSQL field type geometry (id:607926) in column 18</code></pre>
@@ -1775,7 +1775,7 @@ show_query(activity_geocoded)</code></pre>
 <pre class="r"><code>count(activity_geocoded)</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["n"],"name":[1],"type":["dbl"],"align":["right"]}],"data":[{"1":"1528281"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["n"],"name":[1],"type":["dbl"],"align":["right"]}],"data":[{"1":"1061103"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 </div>
@@ -1810,7 +1810,7 @@ show_query(activity_geocoded)</code></pre>
 <pre><code>## Warning in postgresqlExecStatement(conn, statement, ...): RPosgreSQL warning:
 ## unrecognized PostgreSQL field type geometry (id:607926) in column 19</code></pre>
 <pre class="r"><code>nrow(activity_geocoded_listn)</code></pre>
-<pre><code>## [1] 1335489</code></pre>
+<pre><code>## [1] 868311</code></pre>
 </div>
 <div id="output-in-.xlsx-format" class="section level3">
 <h3>Output in .xlsx format</h3>
