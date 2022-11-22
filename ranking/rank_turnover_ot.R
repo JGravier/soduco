@@ -48,10 +48,10 @@ for (k in 1:length(liste_pays)) {
     
     tabletableau_Nt_N0 <- tibble(Country = character(), time_t = numeric(), Nt = numeric(), N0 = numeric())
     
-    for (j in 2:(length(liste_filtre_N0))) {
+    for (j in 1:(length(liste_filtre_N0))) {
       
       tableau_intermediaire <- tableau_filtre_N0 %>%
-        filter(time_t < j) %>%
+        filter(time_t <= j) %>%
         bind_rows(
           tableau_filtre_N0 %>%
             filter(time_t == j)
@@ -101,7 +101,6 @@ tableau_turnover %>%
   summarise(meanot = mean(Ot), sdot = sd(Ot)) %>%
   ggplot(aes(x = N0, y = meanot, color = Country, group = Country)) +
   geom_line() +
-  geom_point(size = 0.8, alpha = 0.5) +
   ggthemes::scale_color_tableau(palette = "Tableau 10") +
   theme_bw() +
   scale_x_continuous(name = TeX(r"($N_{0}$)"), trans = "log10") +
