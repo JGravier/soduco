@@ -1,6 +1,7 @@
 library(tidyverse)
 library(readxl)
 library(data.table)
+library(patchwork)
 
 #### tradeve database ####
 tradeve <- read_excel(path = "ranking_exploration/TRADEVE_database/TRADEVE_UrbanAreas_Data.xlsx", sheet = "UrbanAreas_Data")
@@ -124,7 +125,22 @@ ggsave(filename = "ranking_exploration/rank_turnover_tradeve.png", plot = last_p
 
 
 # visualization of o point as defined by iniguez et al.
+tableau_turnover %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 6)) %>%
+  mutate(time_t = paste0("t_", time_t)) %>%
+  pivot_wider(id_cols = c(Country, N0), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_6 - t_1)/6) %>%
+  ggplot(aes(x = N0, y = o_point, color = Country, group = Country)) +
+  geom_line() +
+  ggthemes::scale_color_tableau(palette = "Tableau 10") +
+  theme_bw() +
+  scale_x_continuous(name = TeX(r"($N_{0}$)")) +
+  ylab(TeX(r"($\dot{O}$)")) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB", title = "Mean turnover rank rate")
 
+ggsave(filename = "ranking_exploration/rank_turnover_rate_tradeve.png", plot = last_plot(), 
+       width = 18, height = 12, units = 'cm')
 
 
 
