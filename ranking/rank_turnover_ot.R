@@ -122,3 +122,10 @@ tableau_turnover %>%
 ggsave(filename = "ranking_exploration/rank_turnover_tradeve.png", plot = last_plot(), 
        width = 26, height = 12, units = 'cm')
 
+
+# visualization of o point as defined by iniguez et al.
+
+
+
+
+
