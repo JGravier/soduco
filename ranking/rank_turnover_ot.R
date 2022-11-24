@@ -110,13 +110,13 @@ tableau_turnover %>%
   labs(subtitle = TeX(r"($N_{0} = 52$)"), title = "Rank turnover") +
   tableau_turnover %>%
   mutate(Ot = Nt/N0) %>%
-  group_by(Country, N0) %>%
+  group_by(Country, N0, N) %>%
   summarise(meanot = mean(Ot), sdot = sd(Ot)) %>%
-  ggplot(aes(x = N0, y = meanot, color = Country, group = Country)) +
+  ggplot(aes(x = N0/N, y = meanot, color = Country, group = Country)) +
   geom_line() +
   ggthemes::scale_color_tableau(palette = "Tableau 10") +
   theme_bw() +
-  scale_x_continuous(name = TeX(r"($N_{0}$)"), trans = "log10") +
+  scale_x_continuous(name = TeX(r"($N_{0}/N$)")) +
   ylab(TeX(r"($\bar{O_{t}}$)")) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB", subtitle = "Open systems")
 
@@ -142,6 +142,21 @@ tableau_turnover %>%
 ggsave(filename = "ranking_exploration/rank_turnover_rate_tradeve.png", plot = last_plot(), 
        width = 18, height = 12, units = 'cm')
 
+# visualization of o point as defined by iniguez et al. zith N0 normalized
+tableau_turnover %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 6)) %>%
+  mutate(time_t = paste0("t_", time_t)) %>%
+  pivot_wider(id_cols = c(Country, N0, N), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_6 - t_1)/6) %>%
+  ggplot(aes(x = N0/N, y = o_point, color = Country, group = Country)) +
+  geom_line() +
+  ggthemes::scale_color_tableau(palette = "Tableau 10") +
+  theme_bw() +
+  scale_x_continuous(name = TeX(r"($N_{0}/N$)")) +
+  ylab(TeX(r"($\dot{O}$)")) +
+  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB", title = "Mean turnover rank rate")
 
-
+ggsave(filename = "ranking_exploration/rank_turnover_rate_normalized_tradeve.png", plot = last_plot(), 
+       width = 18, height = 12, units = 'cm')
 

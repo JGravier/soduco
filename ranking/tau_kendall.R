@@ -132,11 +132,11 @@ tau_kendall_countries %>%
   kendall_output %>%
   left_join(x = ., y = no_max_countries, by = "Country") %>%
   filter(n <= N) %>%
-  ggplot(aes(n, tau, group = Country, color = Country)) +
+  ggplot(aes(n/N, tau, group = Country, color = Country)) +
   geom_line() +
   ggthemes::scale_color_tableau(palette = "Tableau 10") +
   theme_bw() +
-  scale_x_continuous(name = TeX(r"($N_{0}$)"), trans = "log10") +
+  scale_x_continuous(name = TeX(r"($N_{0}/N$)")) +
   ylab(TeX(r"($\bar{\tau}$)")) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB", subtitle = "Open systems")
 

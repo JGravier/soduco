@@ -1,5 +1,7 @@
 library(tidyverse)
 library(readxl)
+library(latex2exp)
+library(data.table)
 
 #### tradeve database ####
 tradeve <- read_excel(path = "ranking_exploration/TRADEVE_database/TRADEVE_UrbanAreas_Data.xlsx", sheet = "UrbanAreas_Data")
@@ -115,13 +117,13 @@ tableau_flux %>%
 # visu of F as mean of Ft
 tableau_flux %>%
   mutate(Ft_proba = (Ft-N0)/N0) %>%
-  group_by(Country, N0) %>%
+  group_by(Country, N0, N) %>%
   summarise(Ft_proba = mean(Ft_proba)) %>%
-  ggplot(aes(x = N0, y = Ft_proba, color = Country, group = Country)) +
+  ggplot(aes(x = N0/N, y = Ft_proba, color = Country, group = Country)) +
   geom_line() +
   ggthemes::scale_color_tableau(palette = "Tableau 10") +
   theme_bw() +
-  scale_x_continuous(name = TeX(r"($N_{0}$)"), trans = "log10") +
+  scale_x_continuous(name = TeX(r"($N_{0}/N$)")) +
   ylab(TeX(r"($F$)")) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB", title = "Mean rank flux")
 
