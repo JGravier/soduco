@@ -24,7 +24,7 @@ dk_countries_tradeve <- tradeve %>%
 # list of countries studied
 liste_pays <- c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO")
 # test of diverse ranking sizes
-N0 <- seq(2, 768, 5)
+N0 <- seq(2, 768, 1)
 # output tibble of rank flux
 tableau_flux <- tibble(Ft = numeric(), Country = character(), time_t = numeric(), time_t1 = numeric(), N0 = numeric())
 
@@ -127,5 +127,14 @@ tableau_flux %>%
   ylab(TeX(r"($F$)")) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB", title = "Mean rank flux")
 
-ggsave(filename = "ranking_exploration/rank_flux_tradeve.png", plot = last_plot(), 
+ggsave(filename = "ranking_exploration/rank_flux_normalized_tradeve.png", plot = last_plot(), 
        width = 18, height = 12, units = 'cm')
+
+ # output of F
+Flux_tradeve <- tableau_flux %>%
+  mutate(Ft_proba = (Ft-N0)/N0) %>%
+  group_by(Country, N0, N) %>%
+  summarise(Ft_proba = mean(Ft_proba)) 
+
+write.csv(x = Flux_tradeve, file = "ranking_exploration/outputs/ft_proba_tradeve.csv", row.names = FALSE)
+
