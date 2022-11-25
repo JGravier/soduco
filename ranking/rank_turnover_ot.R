@@ -1,6 +1,7 @@
 library(tidyverse)
 library(readxl)
 library(data.table)
+library(latex2exp)
 library(patchwork)
 
 #### tradeve database ####
@@ -25,7 +26,7 @@ dk_countries_tradeve <- tradeve %>%
 # list of countries studied
 liste_pays <- c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO")
 # test of diverse ranking sizes
-N0 <- seq(2, 768, 5)
+N0 <- seq(2, 768, 1)
 # output tibble of rank turnover
 tableau_turnover <- tibble(Country = character(), time_t = numeric(), Nt = numeric(), N0 = numeric())
 
@@ -159,4 +160,14 @@ tableau_turnover %>%
 
 ggsave(filename = "ranking_exploration/rank_turnover_rate_normalized_tradeve.png", plot = last_plot(), 
        width = 18, height = 12, units = 'cm')
+
+# outputs turnover
+tableau_turnover <- tableau_turnover %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 6)) %>%
+  mutate(time_t = paste0("t_", time_t)) %>%
+  pivot_wider(id_cols = c(Country, N0, N), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_6 - t_1)/6)
+
+write.csv(x = tableau_turnover, file = "ranking_exploration/outputs/o_point_tradeve.csv", row.names = FALSE)
 
