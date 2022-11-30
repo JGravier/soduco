@@ -1,5 +1,5 @@
 
-## Ranking analysis exploration
+## Ranking Analysis
 
 Analysis of rank dynamics based on 3 main papers:
 
@@ -16,7 +16,7 @@ Analysis of rank dynamics based on 3 main papers:
     of ranking », Nat Commun, vol. 13, nᵒ 1, Art. nᵒ 1, 2022, doi:
     [10.1038/s41467-022-29256-x](https://doi.org/10.1038/s41467-022-29256-x).
 
-## Based on open datasets
+## Based on diverse systems from open datasets
 
 Systems of cities:
 
@@ -31,3 +31,10 @@ Systems of cities:
     Social and Economic History », Res. Data J Humanit. Soc. Sci.,
     vol. 6, nᵒ 1, p. 1‑18, 2021, doi:
     [10.1163/24523666-06010003](https://doi.org/10.1163/24523666-06010003).
+
+Universities:
+
+-   ShanghaiRanking Consultancy et M. O’Neill, « Shanghai World
+    University Ranking ». opendatasoft, 2018. Consulté le: 28
+    novembre 2022. \[En ligne\]. Disponible sur:
+    <http://public.opendatasoft.com/explore/dataset/shanghai-world-university-ranking/information/>
