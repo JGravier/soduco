@@ -17,7 +17,6 @@ dk_countries_tradeve <- tradeve %>%
          rang_2001 = rank(desc(Pop_2001)),
          rang_2011 = rank(desc(Pop_2011)))
 
-
 #### rank turnover calculations ####
 # as defined in Iniguez et al. 2022
 # G. Iñiguez, C. Pineda, C. Gershenson, et A.-L. Barabási, 
@@ -87,6 +86,8 @@ for (k in 1:length(liste_pays)) {
   
 }
 
+
+#### tradeve plots ####
 # size of each country system
 no_max_countries <- dk_countries_tradeve %>%
   filter(Country %in% c("DE", "CZ", "ES", "FR", "UK", "IT", "NL", "PL", "RO"))  %>%
@@ -169,5 +170,200 @@ tableau_turnover <- tableau_turnover %>%
   pivot_wider(id_cols = c(Country, N0, N), names_from = time_t, values_from = Ot) %>%
   mutate(o_point = (t_6 - t_1)/6)
 
-write.csv(x = tableau_turnover, file = "ranking_exploration/outputs/o_point_tradeve.csv", row.names = FALSE)
+write.csv(x = tableau_turnover, file = "ranking_exploration/outputs_data/o_point_tradeve.csv", row.names = FALSE)
+
+#### shangai dataset 100 ####
+shangai <- read.csv2(file = "ranking_exploration/shangairanking/shanghai-world-university-ranking.csv") %>%
+  as_tibble()
+
+shangai_ranked <- shangai %>%
+  mutate(rank = as.numeric(World.rank)) %>%
+  filter(rank <= 100) %>%
+  select(University, Year, rank)
+
+#### 100 rank turnover calculations ####
+
+# test of diverse ranking sizes
+N0 <- seq(2, 100, 1)
+# output tibble of rank turnover
+tableau_turnover <- tibble(time_t = numeric(), Nt = numeric(), N0 = numeric())
+
+# loop to create rank turnover considering diverse ranking sizes
+# filtering init tibble by country and creation of list of tibbles by periods t analysed
+tableau <- shangai_ranked %>%
+    group_split(Year)
+  
+for (i in 1:length(x = N0)) {
+    
+  liste_filtre_N0 <- list()
+    
+  # filtering data by ranking size for a time t
+  for (j in 1:length(tableau)) {
+      
+    liste_filtre_N0[[j]] <- tableau[[j]] %>%
+      filter(rank <= N0[i]) %>%
+      mutate(time_t = j)
+      
+  }
+    
+  tableau_filtre_N0 <- data.table::rbindlist(l = liste_filtre_N0) %>% # binding all tibbles in list in one tibble
+     as_tibble()
+    
+  tabletableau_Nt_N0 <- tibble(time_t = numeric(), Nt = numeric(), N0 = numeric())
+    
+  for (j in 1:length(liste_filtre_N0)) {
+      # calculate rank turnover for each time t periods
+      tableau_intermediaire <- tableau_filtre_N0 %>%
+        filter(time_t <= j) %>%
+        bind_rows(
+          tableau_filtre_N0 %>%
+            filter(time_t == j)
+        ) %>%
+        summarise(Nt = n_distinct(University)) %>%
+        mutate(time_t = j,
+               N0 = N0[i])
+      
+      tabletableau_Nt_N0 <- tabletableau_Nt_N0 %>%
+        bind_rows(tableau_intermediaire)
+    }
+    
+    print(i)
+    
+  tableau_turnover <- tableau_turnover %>%
+    bind_rows(tabletableau_Nt_N0)
+    
+}
+
+#### shangai plots ####
+# how many diverse universities?
+shangai_ranked %>% 
+  select(University) %>% 
+  unique() %>% 
+  count()
+
+tableau_turnover %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 14)) %>%
+  mutate(time_t = paste0("t_", time_t)) %>%
+  pivot_wider(id_cols = c(N0), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_14 - t_1)/14) %>%
+  ggplot(aes(x = N0/147, y = o_point)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_continuous(name = TeX(r"($N_{0}/N$)")) +
+  ylab(TeX(r"($\dot{O}$)")) +
+  labs(caption = "J. Gravier, 2022. Data: Shangai World University Ranking", 
+       title = "Mean turnover rank rate - top 100")
+
+ggsave(filename = "ranking_exploration/rank_turnover_rate_normalized_shangai.png", plot = last_plot(), 
+       width = 18, height = 12, units = 'cm')
+
+# outputs turnover
+tableau_turnover <- tableau_turnover %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 14)) %>%
+  mutate(time_t = paste0("t_", time_t), N = 147) %>%
+  pivot_wider(id_cols = c(N0, N), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_14 - t_1)/14)
+
+write.csv(x = tableau_turnover, file = "ranking_exploration/outputs_data/o_point_shangai.csv", row.names = FALSE)
+
+
+#### shangai all ####
+shangai <- read.csv2(file = "ranking_exploration/shangairanking/shanghai-world-university-ranking.csv") %>%
+  as_tibble()
+
+shangai_ranked <- shangai %>%
+  select(University, Year, World.rank.integer) %>%
+  rename(rank = World.rank.integer)
+
+#### all rank turnover calculations ####
+
+# test of diverse ranking sizes
+N0 <- c(2, 50, 100, 150, 200, 300, 400, 500)
+# output tibble of rank turnover
+tableau_turnover <- tibble(time_t = numeric(), Nt = numeric(), N0 = numeric())
+
+# loop to create rank turnover considering diverse ranking sizes
+# filtering init tibble by country and creation of list of tibbles by periods t analysed
+tableau <- shangai_ranked %>%
+  group_split(Year)
+
+for (i in 1:length(x = N0)) {
+  
+  liste_filtre_N0 <- list()
+  
+  # filtering data by ranking size for a time t
+  for (j in 1:length(tableau)) {
+    
+    liste_filtre_N0[[j]] <- tableau[[j]] %>%
+      filter(rank <= N0[i]) %>%
+      mutate(time_t = j)
+    
+  }
+  
+  tableau_filtre_N0 <- data.table::rbindlist(l = liste_filtre_N0) %>% # binding all tibbles in list in one tibble
+    as_tibble()
+  
+  tabletableau_Nt_N0 <- tibble(time_t = numeric(), Nt = numeric(), N0 = numeric())
+  
+  for (j in 1:length(liste_filtre_N0)) {
+    # calculate rank turnover for each time t periods
+    tableau_intermediaire <- tableau_filtre_N0 %>%
+      filter(time_t <= j) %>%
+      bind_rows(
+        tableau_filtre_N0 %>%
+          filter(time_t == j)
+      ) %>%
+      summarise(Nt = n_distinct(University)) %>%
+      mutate(time_t = j,
+             N0 = N0[i])
+    
+    tabletableau_Nt_N0 <- tabletableau_Nt_N0 %>%
+      bind_rows(tableau_intermediaire)
+  }
+  
+  print(i)
+  
+  tableau_turnover <- tableau_turnover %>%
+    bind_rows(tabletableau_Nt_N0)
+  
+}
+
+#### shangai plots ####
+# how many diverse universities?
+shangai_ranked %>% 
+  select(University) %>% 
+  unique() %>% 
+  count()
+
+tableau_turnover %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 14)) %>%
+  mutate(time_t = paste0("t_", time_t)) %>%
+  pivot_wider(id_cols = c(N0), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_14 - t_1)/14) %>%
+  ggplot(aes(x = N0/726, y = o_point)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_continuous(name = TeX(r"($N_{0}/N$)")) +
+  ylab(TeX(r"($\dot{O}$)")) +
+  labs(caption = "J. Gravier, 2022. Data: Shangai World University Ranking", 
+       title = "Mean turnover rank rate - top 500")
+
+ggsave(filename = "ranking_exploration/rank_turnover_rate_normalized_shangaiall.png", plot = last_plot(), 
+       width = 18, height = 12, units = 'cm')
+
+# outputs turnover
+tableau_turnover <- tableau_turnover %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 14)) %>%
+  mutate(time_t = paste0("t_", time_t), N = 147) %>%
+  pivot_wider(id_cols = c(N0, N), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_14 - t_1)/14)
+
+write.csv(x = tableau_turnover, file = "ranking_exploration/outputs_data/o_point_shangai_500.csv", row.names = FALSE)
+
+
+
 
