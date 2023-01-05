@@ -1,0 +1,59 @@
+---
+title: "Permutation"
+author: "Julie Gravier"
+date: "01/01/2023"
+format: 
+  html:
+    fig-width: 8
+    fig-height: 4
+    code-fold: false
+---
+
+Creating a vector of length 10
+```{r}
+vec <- seq(1,10,1)
+vec
+```
+
+We want to permute elements with a probability (proba is relative to the number of element).
+Example with prob = 0.2
+
+```{r}
+proba <- 0.2
+vecsamp <- sample(x = vec, size = length(vec)*proba)
+vecsamp
+
+# second sampling with same proba, but on initial vector vec without the result of vecsamp
+vec2 <- setdiff(x = vec, y = vecsamp) # element of x not in y
+vec2
+# resampling:
+vecsamp2 <- sample(x = vec2, size = length(vec)*proba)
+vecsamp2
+```
+
+Permutation of the first vector _vec_ with the results of sampling:
+```{r}
+finalvec <- vec
+
+for (i in 1:length(vec)) {
+  # is vec[i] is equal to vecsamp[i] ? then replace
+  for (j in 1:length(vecsamp)) {
+  
+   if (vec[i] == vecsamp[j]) {
+      finalvec[i] <- vecsamp2[j]
+   } else if (vec[i] == vecsamp2[j]) {
+      finalvec[i] <- vecsamp[j]
+   }
+    
+  }
+  
+}
+
+vec
+finalvec
+
+```
+
+
+
+
