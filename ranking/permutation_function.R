@@ -37,44 +37,28 @@ jump_permutation <- function(vector, prob){
   
 }
 
-### First model: jump qnd diffusion in rank and permutation of elements with a probability <= 0.5
+### Second model: jump and diffusion in rank and permutation of elements with a probability <= 0.5
 jump_diff_permutation <- function(vector, prob){
-  vec <- vector
-  
-  #### sampling the vector with a probability
   ## probability is linked to permutation as:
   ## proba of diffusion = alpha
   ## proba of jump = 1-alpha
   ## Permutation t-1,t = alpha(1-alpha) ; max proba is 0.25
+  vector <- vector %>%
+    as_tibble() %>%
+    rowid_to_column(var = "id") %>%
+    rename(rank = value)
   
-  # sampling 1:
-  vecsamp <- sample(x = vec, size = length(vec)*prob)
+  vec2 <- vector %>%
+    sample_n(tbl = ., size = prob, replace = FALSE) %>%
+    mutate(newvalue = sample(x = vector$rank, size = prob, replace = FALSE))
   
-  # vec for sampling 2: with same proba, but on initial vector vec without the result of vecsamp
-  vec2 <- setdiff(x = vec, y = vecsamp) # element of x not in y
+  result <- vector %>%
+    mutate(newvalue = rank) %>%
+    rows_update(x = ., y = vec2, by = "id") %>%
+    mutate(newrank = rank(x = newvalue, ties.method = "last")) %>%
+    arrange(newrank)
   
-  # sampling 2:
-  vecsamp2 <- sample(x = vec2, size = length(vec)*prob)
-  vecsamp2 <- sort(x = vecsamp2, decreasing = FALSE) # need reordering elements
-  
-  # final vector complete permutation
-  finalvec <- vec
-  
-  for (j in 1:length(vecsamp2)) {
-    
-    for (i in 1:length(vec)) {
-      
-      if (vec[i] == vecsamp2[j]) { # is vec[i] is equal to vecsamp2[j] ? then replace
-        finalvec[i] <- vecsamp[j]
-      } else if (vecsamp[j] > vecsamp2[j] & vec[i] >= vecsamp[j] & vec[i] < vecsamp2[j]) { # case of descending in ranking for diffusion
-        finalvec[i] <- vec[i-1]
-      } else if (vecsamp[j] < vecsamp2[j] & vec[i] <= vecsamp[j] & vec[i] > vecsamp2[j]) { # case of ascending in ranking for diffusion
-        finalvec[i] <- vec[i+1]
-      } 
-      
-    }
-    
-  }
+  finalvec <- result$id
   
   return(finalvec)
   
