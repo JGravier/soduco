@@ -4,6 +4,25 @@ library(ggpubr)
 library(ggrepel)
 
 
+#### permutation model ####
+o_t_model <- read.csv(file = "outputs_data/o_t_jumpdiffmodel_size1000_t10_p20.csv") %>%
+  as_tibble()
+
+o_point_model <- o_t_model %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 10)) %>%
+  mutate(time_t = paste0("t_", time_t), N = 1000) %>%
+  pivot_wider(id_cols = c(N0, proba, N), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_10 - t_1)/10)
+
+flux_proba_model <- read.csv(file = "outputs_data/Flux_mean_t_jumpdiffmodel_size1000_t10_p20.csv", stringsAsFactors = FALSE) %>%
+  as_tibble() %>%
+  mutate(N=1000)
+
+o_f_data_model <- o_point_model %>%
+  left_join(x = ., y = flux_proba_model, by = c("proba", "N0", "N")) %>% mutate(`N0/N` = N0/N)
+
+
 #### tradeve DB ####
 o_point_tradeve <- read.csv(file = "outputs_data/o_point_tradeve.csv", stringsAsFactors = FALSE) %>%
   as_tibble()
@@ -98,10 +117,10 @@ ggsave(filename = "F_O_point_N0onN_countries_maximisationdoto_v2.png", plot = la
 
 
 #### shangai DB ####
-o_point_shangai <- read.csv(file = "ranking_exploration/outputs_data/o_point_shangai.csv", stringsAsFactors = FALSE) %>%
+o_point_shangai <- read.csv(file = "outputs_data/o_point_shangai.csv", stringsAsFactors = FALSE) %>%
   as_tibble()
 
-flux_proba_shangai <- read.csv(file = "ranking_exploration/outputs_data/ft_proba_shangai.csv", stringsAsFactors = FALSE) %>%
+flux_proba_shangai <- read.csv(file = "outputs_data/Flux_mean_t_proba_shangai.csv", stringsAsFactors = FALSE) %>%
   as_tibble()
 
 o_f_data_shangai <- o_point_shangai %>%
@@ -120,10 +139,27 @@ ggscatter(data = o_f_data_shangai,
   ylab(TeX(r"($\dot{O}$)")) +
   labs(caption = "J. Gravier, 2022. Data: Shangai World University Ranking")
 
-ggsave(filename = "ranking_exploration/F_O_point_N0onN_shangai.png", plot = last_plot(),
+ggsave(filename = "F_O_point_N0onN_shangai.png", plot = last_plot(),
        width = 18, height = 15, units = 'cm')
 
-#### comparing: O vs F ####
+
+#### O vs F model ####
+ggscatter(data = o_f_data_model, 
+          x = "Ft_proba", y = "o_point", color = "N0/N", alpha = 0.5, add = "reg.line") +
+  geom_smooth(se = FALSE, method = "lm", color = "grey40") +
+  stat_cor(label.y = 0.25, size = 2) +
+  stat_regline_equation(label.y = 0.20, size = 2) +
+  scale_color_viridis_c() +
+  theme_bw() +
+  xlab(TeX(r"($F$)")) +
+  ylab(TeX(r"($\dot{O}$)")) +
+  labs(caption = "J. Gravier, 2023. Data: TRADEVE DB") +
+  facet_wrap(~round(proba,4), scales = "free")
+
+ggsave(filename = "F_O_point_N0onN_comparing_modeldiffjump.png", plot = last_plot(),
+       width = 23, height = 20, units = 'cm')
+
+#### O vs F ####
 o_f_datasets <- o_f_data_tradeve %>%
   select(-t_1, -t_6) %>%
   bind_rows(o_f_data_shangai %>%
@@ -146,10 +182,29 @@ ggscatter(data = o_f_datasets,
 ggsave(filename = "ranking_exploration/F_O_point_N0onN_comparing.png", plot = last_plot(),
        width = 23, height = 20, units = 'cm')
 
+#### Maximisation o model ####
+# o_f_data_model %>%
+#   filter(`N0/N` > 0.15) %>%
+#   group_by(proba) %>%
+#   mutate(maximisation = max(o_point)) %>%
+#   mutate(estmax = if_else(maximisation == o_point, TRUE, FALSE)) %>%
+#   filter(estmax == TRUE) %>%
+#   ungroup() %>%
+#   ggplot() +
+#   geom_point(aes(x = Ft_proba, y = o_point, color = proba, size = `N0/N`)) +
+#   geom_text(aes(x = Ft_proba, y = o_point, label = round(`N0/N`, digits = 3)), 
+#             hjust = 0, vjust = 2, size = 2.5) +
+#   theme_bw() +
+#   xlab(TeX(r"($F$)")) +
+#   scale_y_continuous(TeX(r"($\dot{O}$)")) +
+#   labs(caption = "J. Gravier, 2022.")
+# 
+# ggsave(filename = "F_O_point_N0onN_countries_maximisationdoto_model.png", plot = last_plot(),
+#        width = 18, height = 15, units = 'cm')
 
-#### comparing: maximisation ####
+#### Maximisation of o point ####
 o_f_datasets %>%
-  filter(`N0/N` > 0.25) %>%
+  filter(`N0/N` > 0.15) %>%
   group_by(Country) %>%
   mutate(maximisation = max(o_point)) %>%
   mutate(estmax = if_else(maximisation == o_point, TRUE, FALSE)) %>%
@@ -164,7 +219,7 @@ o_f_datasets %>%
   scale_y_continuous(TeX(r"($\dot{O}$)"), limits = c(0, 0.075)) +
   labs(caption = "J. Gravier, 2022.")
 
-ggsave(filename = "ranking_exploration/F_O_point_N0onN_countries_maximisationdoto_datasets.png", plot = last_plot(),
+ggsave(filename = "F_O_point_N0onN_countries_maximisationdoto_datasets.png", plot = last_plot(),
        width = 18, height = 15, units = 'cm')
 
 
