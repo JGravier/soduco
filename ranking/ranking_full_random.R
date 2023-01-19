@@ -82,13 +82,15 @@ for (i in 2:length(x = N0)) {
 write.csv(x = tableau_turnover, file = "outputs_data/o_point_random_size1000_t10.csv", 
           row.names = FALSE)
 
+
+# input data from model
 tableau_turnover <- read.csv(file = "outputs_data/o_point_random_size1000_t10.csv")
 
 #### plotting diverse Ot on N0 
 tableau_turnover %>%
-  mutate(Ot = Nt/N0) %>%
-  filter(N0 %in% seq(2, 1002, 50)) %>%
-  ggplot(aes(x = time_t, y = Ot, color = N0, group = N0)) +
+  mutate(Ot = Nt/N0,
+         N=1000) %>%
+  ggplot(aes(x = time_t, y = Ot, color = N0/N, group = N0/N)) +
   scale_color_viridis_c(option = "C") +
   geom_line() +
   theme_bw() +
