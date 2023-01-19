@@ -130,7 +130,7 @@ ggsave(filename = "rank_flux_normalized_tradeve.png", plot = last_plot(),
 
 
 #### shangai dataset 100 ####
-shangai <- read.csv2(file = "ranking_exploration/shangairanking/shanghai-world-university-ranking.csv") %>%
+shangai <- read.csv2(file = "shangairanking/shanghai-world-university-ranking.csv") %>%
   as_tibble()
 
 shangai_ranked <- shangai %>%
@@ -195,13 +195,21 @@ for (i in 1:length(x = N0)) {
     
 }
 
-#### shangai visu/outputs ####
-# visu of F as mean of Ft
-tableau_flux %>%
+# output 
+write.csv(x = tableau_flux, file = "outputs_data/ft_proba_shangai.csv", row.names = FALSE)
+
+# output of Ft
+Flux_shangai <- tableau_flux %>%
   mutate(Ft_proba = (Ft-N0)/N0,
          N = 147) %>%
   group_by(N0, N) %>%
-  summarise(Ft_proba = mean(Ft_proba)) %>%
+  summarise(Ft_proba = mean(Ft_proba))
+
+write.csv(x = Flux_shangai, file = "outputs_data/Flux_mean_t_proba_shangai.csv", row.names = FALSE)
+
+#### shangai visu/outputs ####
+# visu of F as mean of Ft
+Flux_shangai %>%
   ggplot(aes(x = N0/N, y = Ft_proba)) +
   geom_line() +
   theme_bw() +
@@ -209,14 +217,5 @@ tableau_flux %>%
   ylab(TeX(r"($F$)")) +
   labs(caption = "J. Gravier, 2022. Data: Shangai World University Ranking", title = "Mean rank flux - top 100")
 
-ggsave(filename = "ranking_exploration/rank_flux_normalized_shangai.png", plot = last_plot(), 
+ggsave(filename = "rank_flux_normalized_shangai.png", plot = last_plot(), 
        width = 18, height = 12, units = 'cm')
-
-# output of F
-Flux_tradeve <- tableau_flux %>%
-  mutate(Ft_proba = (Ft-N0)/N0,
-         N = 147) %>%
-  group_by(N0, N) %>%
-  summarise(Ft_proba = mean(Ft_proba))
-
-write.csv(x = Flux_tradeve, file = "ranking_exploration/outputs_data/ft_proba_shangai.csv", row.names = FALSE)
