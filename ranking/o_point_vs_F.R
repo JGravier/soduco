@@ -78,7 +78,7 @@ ggsave(filename = "F_O_point_N0onN_countries_maximisationdoto.png", plot = last_
 
 # maximisation of dot o 2nd version
 o_f_data_tradeve %>%
-  filter(`N0/N` > 0.10) %>%
+  filter(`N0/N` > 0.15) %>%
   group_by(Country) %>%
   mutate(maximisation = max(o_point)) %>%
   mutate(estmax = if_else(maximisation == o_point, TRUE, FALSE)) %>%
