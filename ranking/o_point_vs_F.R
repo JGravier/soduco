@@ -5,10 +5,10 @@ library(ggrepel)
 
 
 #### tradeve DB ####
-o_point_tradeve <- read.csv(file = "ranking_exploration/outputs_data/o_point_tradeve.csv", stringsAsFactors = FALSE) %>%
+o_point_tradeve <- read.csv(file = "outputs_data/o_point_tradeve.csv", stringsAsFactors = FALSE) %>%
   as_tibble()
 
-flux_proba_tradeve <- read.csv(file = "ranking_exploration/outputs_data/ft_proba_tradeve.csv", stringsAsFactors = FALSE) %>%
+flux_proba_tradeve <- read.csv(file = "outputs_data/Flux_mean_t_proba_tradeve.csv", stringsAsFactors = FALSE) %>%
   as_tibble()
 
 o_f_data_tradeve <- o_point_tradeve %>%
@@ -38,7 +38,7 @@ ggscatter(data = o_f_data_tradeve,
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB") +
   facet_wrap(~Country, scales = "free")
 
-ggsave(filename = "ranking_exploration/F_O_point_N0onN_countries.png", plot = last_plot(),
+ggsave(filename = "F_O_point_N0onN_countries.png", plot = last_plot(),
        width = 23, height = 20, units = 'cm')
 
 
@@ -54,7 +54,7 @@ ggscatter(data = o_f_data_tradeve %>% sample_frac(size = 0.68),
   ylab(TeX(r"($\dot{O}$)")) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB")
 
-ggsave(filename = "ranking_exploration/F_O_point_N0onN_countries_sample.png", plot = last_plot(),
+ggsave(filename = "F_O_point_N0onN_countries_sample.png", plot = last_plot(),
        width = 18, height = 15, units = 'cm')
 
 # maximisation of dot o
@@ -73,7 +73,7 @@ o_f_data_tradeve %>%
   scale_y_continuous(TeX(r"($\dot{O}$)"), limits = c(0, 0.20)) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB")
 
-ggsave(filename = "ranking_exploration/F_O_point_N0onN_countries_maximisationdoto.png", plot = last_plot(),
+ggsave(filename = "F_O_point_N0onN_countries_maximisationdoto.png", plot = last_plot(),
        width = 18, height = 15, units = 'cm')
 
 # maximisation of dot o 2nd version
@@ -93,7 +93,7 @@ o_f_data_tradeve %>%
   scale_y_continuous(TeX(r"($\dot{O}$)"), limits = c(0, 0.075)) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB")
 
-ggsave(filename = "ranking_exploration/F_O_point_N0onN_countries_maximisationdoto_v2.png", plot = last_plot(),
+ggsave(filename = "F_O_point_N0onN_countries_maximisationdoto_v2.png", plot = last_plot(),
        width = 18, height = 15, units = 'cm')
 
 
