@@ -4,7 +4,7 @@ library(latex2exp)
 library(data.table)
 
 #### tradeve database ####
-tradeve <- read_excel(path = "ranking_exploration/TRADEVE_database/TRADEVE_UrbanAreas_Data.xlsx", sheet = "UrbanAreas_Data")
+tradeve <- read_excel(path = "TRADEVE_database/TRADEVE_UrbanAreas_Data.xlsx", sheet = "UrbanAreas_Data")
 
 # creation of ranking by countries
 dk_countries_tradeve <- tradeve %>%
@@ -58,7 +58,7 @@ for (k in 1:length(liste_pays)) {
     
     tabletableau_Ft_N0 <- tibble(Ft = numeric(), Country = character(), time_t = numeric(), time_t1 = numeric(), N0 = numeric())
     
-    for (j in 2:(length(liste_filtre_N0)-1)) {
+    for (j in 1:(length(liste_filtre_N0)-1)) {
       # calculate rank turnover for each time t periods
       tableau_intermediaire <- tableau_filtre_N0 %>%
         filter(time_t == j) %>%
@@ -100,25 +100,23 @@ tableau_flux <- tableau_flux %>%
   left_join(x = ., y = no_max_countries, by = "Country") %>%
   filter(N0 <= N)
 
-tableau_flux %>%
+# output 
+write.csv(x = tableau_flux, file = "outputs_data/ft_proba_tradeve.csv", row.names = FALSE)
+
+### read data ###
+tableau_flux <- read.csv(file = "outputs_data/ft_proba_tradeve.csv")
+
+# output of Ft
+Flux_tradeve <- tableau_flux %>%
   mutate(Ft_proba = (Ft-N0)/N0) %>%
-  mutate(t_on_T = time_t/6) %>%
-  mutate(N0 = paste0("N0 = ", N0)) %>%
-  ggplot(aes(x = t_on_T, y = Ft_proba, color = Country, group = Country)) +
-  geom_line() +
-  ggthemes::scale_color_tableau(palette = "Tableau 10") +
-  theme_bw() +
-  scale_x_continuous(name = TeX(r"($t/T$)")) +
-  ylab(TeX(r"($F_{t}$)")) +
-  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB", title = "Rank flux") +
-  facet_wrap(~N0)
+  group_by(Country, N0, N) %>%
+  summarise(Ft_proba = mean(Ft_proba))
+
+write.csv(x = Flux_tradeve, file = "outputs_data/Flux_mean_t_proba_tradeve.csv", row.names = FALSE)
 
 
 # visu of F as mean of Ft
-tableau_flux %>%
-  mutate(Ft_proba = (Ft-N0)/N0) %>%
-  group_by(Country, N0, N) %>%
-  summarise(Ft_proba = mean(Ft_proba)) %>%
+Flux_tradeve %>%
   ggplot(aes(x = N0/N, y = Ft_proba, color = Country, group = Country)) +
   geom_line() +
   ggthemes::scale_color_tableau(palette = "Tableau 10") +
@@ -127,16 +125,9 @@ tableau_flux %>%
   ylab(TeX(r"($F$)")) +
   labs(caption = "J. Gravier, 2022. Data: TRADEVE DB", title = "Mean rank flux")
 
-ggsave(filename = "ranking_exploration/rank_flux_normalized_tradeve.png", plot = last_plot(), 
+ggsave(filename = "rank_flux_normalized_tradeve.png", plot = last_plot(), 
        width = 18, height = 12, units = 'cm')
 
- # output of F
-Flux_tradeve <- tableau_flux %>%
-  mutate(Ft_proba = (Ft-N0)/N0) %>%
-  group_by(Country, N0, N) %>%
-  summarise(Ft_proba = mean(Ft_proba)) 
-
-write.csv(x = Flux_tradeve, file = "ranking_exploration/outputs_data/ft_proba_tradeve.csv", row.names = FALSE)
 
 #### shangai dataset 100 ####
 shangai <- read.csv2(file = "ranking_exploration/shangairanking/shanghai-world-university-ranking.csv") %>%
@@ -177,7 +168,7 @@ for (i in 1:length(x = N0)) {
     
     tabletableau_Ft_N0 <- tibble(Ft = numeric(), time_t = numeric(), time_t1 = numeric(), N0 = numeric())
     
-    for (j in 2:(length(liste_filtre_N0)-1)) {
+    for (j in 1:(length(liste_filtre_N0)-1)) {
       # calculate rank turnover for each time t periods
       tableau_intermediaire <- tableau_filtre_N0 %>%
         filter(time_t == j) %>%
