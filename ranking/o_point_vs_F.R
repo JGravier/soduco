@@ -127,6 +127,18 @@ o_f_data_shangai <- o_point_shangai %>%
   left_join(x = ., y = flux_proba_shangai, by = c("N0", "N")) %>%
   mutate(`N0/N` = N0/N)
 
+#### fortune500 ####
+o_point_fortune500 <- read.csv(file = "outputs_data/o_point_fortune500.csv", stringsAsFactors = FALSE) %>%
+  as_tibble()
+
+flux_proba_fortune500 <- read.csv(file = "outputs_data/Flux_mean_t_proba_fortune500.csv", stringsAsFactors = FALSE) %>%
+  as_tibble()
+
+o_f_data_fortune500 <- o_point_fortune500 %>%
+  left_join(x = ., y = flux_proba_fortune500, by = c("N0", "N")) %>%
+  mutate(`N0/N` = N0/N)
+
+
 # visualization of F and o dot in scatter reg
 ggscatter(data = o_f_data_shangai, 
           x = "Ft_proba", y = "o_point", color = "N0/N", alpha = 0.5, add = "reg.line") +
@@ -153,7 +165,7 @@ ggscatter(data = o_f_data_model,
   theme_bw() +
   xlab(TeX(r"($F$)")) +
   ylab(TeX(r"($\dot{O}$)")) +
-  labs(caption = "J. Gravier, 2023. Data: TRADEVE DB") +
+  labs(caption = "J. Gravier, 2023") +
   facet_wrap(~round(proba,4), scales = "free")
 
 ggsave(filename = "F_O_point_N0onN_comparing_modeldiffjump.png", plot = last_plot(),
@@ -163,23 +175,26 @@ ggsave(filename = "F_O_point_N0onN_comparing_modeldiffjump.png", plot = last_plo
 o_f_datasets <- o_f_data_tradeve %>%
   select(-t_1, -t_6) %>%
   bind_rows(o_f_data_shangai %>%
-              select(-t_1, -t_14)) %>%
-  mutate(Country = if_else(condition = is.na(Country), true = "University", false = Country))
+              select(-t_1, -t_14) %>%
+              mutate(Country="University")) %>%
+  bind_rows(o_f_data_fortune500 %>%
+              select(-t_1, -t_65) %>%
+              mutate(Country="Company"))
 
 
 ggscatter(data = o_f_datasets, 
           x = "Ft_proba", y = "o_point", color = "N0/N", alpha = 0.5, add = "reg.line") +
+  geom_smooth(se = FALSE, method = "lm", color = "grey40") +
   stat_cor(label.y = 0.045, size = 2) +
   stat_regline_equation(label.y = 0.05, size = 2) +
-  geom_smooth(se = FALSE, method = "lm", color = "grey40") +
   scale_color_viridis_c() +
   theme_bw() +
   xlab(TeX(r"($F$)")) +
   ylab(TeX(r"($\dot{O}$)")) +
-  labs(caption = "J. Gravier, 2022. Data: TRADEVE DB") +
+  labs(caption = "J. Gravier, 2022") +
   facet_wrap(~Country, scales = "free")
 
-ggsave(filename = "ranking_exploration/F_O_point_N0onN_comparing.png", plot = last_plot(),
+ggsave(filename = "F_O_point_N0onN_comparing.png", plot = last_plot(),
        width = 23, height = 20, units = 'cm')
 
 #### Maximisation o model ####
@@ -213,7 +228,7 @@ o_f_datasets %>%
   ggplot() +
   geom_point(aes(x = Ft_proba, y = o_point, color = Country, size = `N0/N`)) +
   geom_text(aes(x = Ft_proba, y = o_point, label = round(`N0/N`, digits = 3)), hjust = 0, vjust = 1, size = 2.5) +
-  ggthemes::scale_color_tableau(palette = "Color Blind") +
+  ggthemes::scale_color_tableau(palette = "Tableau 20") +
   theme_bw() +
   xlab(TeX(r"($F$)")) +
   scale_y_continuous(TeX(r"($\dot{O}$)"), limits = c(0, 0.075)) +

@@ -5,7 +5,7 @@ library(latex2exp)
 library(patchwork)
 
 #### tradeve database ####
-tradeve <- read_excel(path = "ranking_exploration/TRADEVE_database/TRADEVE_UrbanAreas_Data.xlsx", sheet = "UrbanAreas_Data")
+tradeve <- read_excel(path = "TRADEVE_database/TRADEVE_UrbanAreas_Data.xlsx", sheet = "UrbanAreas_Data")
 
 # creation of ranking by countries
 dk_countries_tradeve <- tradeve %>%
@@ -170,10 +170,10 @@ tableau_turnover <- tableau_turnover %>%
   pivot_wider(id_cols = c(Country, N0, N), names_from = time_t, values_from = Ot) %>%
   mutate(o_point = (t_6 - t_1)/6)
 
-write.csv(x = tableau_turnover, file = "ranking_exploration/outputs_data/o_point_tradeve.csv", row.names = FALSE)
+write.csv(x = tableau_turnover, file = "outputs_data/o_point_tradeve.csv", row.names = FALSE)
 
 #### shangai dataset 100 ####
-shangai <- read.csv2(file = "ranking_exploration/shangairanking/shanghai-world-university-ranking.csv") %>%
+shangai <- read.csv2(file = "shangairanking/shanghai-world-university-ranking.csv") %>%
   as_tibble()
 
 shangai_ranked <- shangai %>%
@@ -365,5 +365,113 @@ tableau_turnover <- tableau_turnover %>%
 write.csv(x = tableau_turnover, file = "ranking_exploration/outputs_data/o_point_shangai_500.csv", row.names = FALSE)
 
 
+#### Fortune500 ####
+companies <- read.csv(file = "fortune500/fortune500_1955_2019.csv") %>%
+  as_tibble()
+
+harmonization <- read.csv(file = "fortune500/fortune500_1955_2019_uniquenames_review.csv") %>%
+  as_tibble()
+
+harmonization2 <- harmonization %>%
+  filter(!is.na(x = grouping)) %>%
+  group_by(grouping) %>%
+  arrange() %>%
+  filter(row_number() == 1) %>%
+  rename(company2=company) %>%
+  select(-any_continuity)
+
+companies <- companies %>%
+  left_join(y = harmonization, by = "company") %>%
+  left_join(y = harmonization2, by = "grouping") %>%
+  mutate(company = if_else(condition = !is.na(grouping), company2, company)) %>%
+  select(company, rank, date)
+
+#### rank turnover calculations ####
+
+# test of diverse ranking sizes
+N0 <- seq(2, 500, 1)
+# output tibble of rank turnover
+tableau_turnover <- tibble(time_t = numeric(), Nt = numeric(), N0 = numeric())
+
+# loop to create rank turnover considering diverse ranking sizes
+# filtering init tibble by country and creation of list of tibbles by periods t analysed
+tableau <- companies %>%
+  group_split(date)
+
+for (i in 1:length(x = N0)) {
+  
+  liste_filtre_N0 <- list()
+  
+  # filtering data by ranking size for a time t
+  for (j in 1:length(tableau)) {
+    
+    liste_filtre_N0[[j]] <- tableau[[j]] %>%
+      filter(rank <= N0[i]) %>%
+      mutate(time_t = j)
+    
+  }
+  
+  tableau_filtre_N0 <- data.table::rbindlist(l = liste_filtre_N0) %>% # binding all tibbles in list in one tibble
+    as_tibble()
+  
+  tabletableau_Nt_N0 <- tibble(time_t = numeric(), Nt = numeric(), N0 = numeric())
+  
+  for (j in 1:length(liste_filtre_N0)) {
+    # calculate rank turnover for each time t periods
+    tableau_intermediaire <- tableau_filtre_N0 %>%
+      filter(time_t <= j) %>%
+      bind_rows(
+        tableau_filtre_N0 %>%
+          filter(time_t == j)
+      ) %>%
+      summarise(Nt = n_distinct(company)) %>%
+      mutate(time_t = j,
+             N0 = N0[i])
+    
+    tabletableau_Nt_N0 <- tabletableau_Nt_N0 %>%
+      bind_rows(tableau_intermediaire)
+  }
+  
+  print(i)
+  
+  tableau_turnover <- tableau_turnover %>%
+    bind_rows(tabletableau_Nt_N0)
+  
+}
+
+#### fortune500 plots ####
+# how many diverse universities?
+companies %>% 
+  select(company) %>% 
+  unique() %>% 
+  count()
+# 2285
+
+tableau_turnover %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 65)) %>%
+  mutate(time_t = paste0("t_", time_t)) %>%
+  pivot_wider(id_cols = c(N0), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_65 - t_1)/65) %>%
+  ggplot(aes(x = N0/2285, y = o_point)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_continuous(name = TeX(r"($N_{0}/N$)")) +
+  ylab(TeX(r"($\dot{O}$)")) +
+  labs(caption = "J. Gravier, 2022. Data: Fortune 500", 
+       title = "Mean turnover rank rate - top 100")
+
+ggsave(filename = "rank_turnover_rate_normalized_fortune500.png", plot = last_plot(), 
+       width = 18, height = 12, units = 'cm')
+
+# outputs turnover
+tableau_turnover <- tableau_turnover %>%
+  mutate(Ot = Nt/N0) %>%
+  filter(time_t %in% c(1, 65)) %>%
+  mutate(time_t = paste0("t_", time_t), N = 2285) %>%
+  pivot_wider(id_cols = c(N0, N), names_from = time_t, values_from = Ot) %>%
+  mutate(o_point = (t_65 - t_1)/65)
+
+write.csv(x = tableau_turnover, file = "outputs_data/o_point_fortune500.csv", row.names = FALSE)
 
 

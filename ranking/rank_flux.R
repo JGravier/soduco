@@ -219,3 +219,107 @@ Flux_shangai %>%
 
 ggsave(filename = "rank_flux_normalized_shangai.png", plot = last_plot(), 
        width = 18, height = 12, units = 'cm')
+
+
+#### Fortune 500 data ####
+companies <- read.csv(file = "fortune500/fortune500_1955_2019.csv") %>%
+  as_tibble()
+
+harmonization <- read.csv(file = "fortune500/fortune500_1955_2019_uniquenames_review.csv") %>%
+  as_tibble()
+
+harmonization2 <- harmonization %>%
+  filter(!is.na(x = grouping)) %>%
+  group_by(grouping) %>%
+  arrange() %>%
+  filter(row_number() == 1) %>%
+  rename(company2=company) %>%
+  select(-any_continuity)
+
+companies <- companies %>%
+  left_join(y = harmonization, by = "company") %>%
+  left_join(y = harmonization2, by = "grouping") %>%
+  mutate(company = if_else(condition = !is.na(grouping), company2, company)) %>%
+  select(company, rank, date)
+
+#### 100 rank flux calculations ####
+
+# test of diverse ranking sizes
+N0 <- seq(2, 500, 1)
+# output tibble of rank flux
+tableau_flux <- tibble(Ft = numeric(), time_t = numeric(), time_t1 = numeric(), N0 = numeric())
+
+# list of tibbles by periods t analysed
+tableau <- companies %>%
+  group_split(date)
+
+# loop to create rank flux considering diverse ranking sizes
+for (i in 1:length(x = N0)) {
+  
+  liste_filtre_N0 <- list()
+  
+  # filtering data by ranking size for a time t
+  for (j in 1:length(tableau)) {
+    
+    liste_filtre_N0[[j]] <- tableau[[j]] %>%
+      filter(rank <= N0[i]) %>%
+      mutate(time_t = j)
+    
+  }
+  
+  tableau_filtre_N0 <- data.table::rbindlist(l = liste_filtre_N0) %>% # binding all tibbles in list in one tibble
+    as_tibble()
+  
+  tabletableau_Ft_N0 <- tibble(Ft = numeric(), time_t = numeric(), time_t1 = numeric(), N0 = numeric())
+  
+  for (j in 1:(length(liste_filtre_N0)-1)) {
+    # calculate rank turnover for each time t periods
+    tableau_intermediaire <- tableau_filtre_N0 %>%
+      filter(time_t == j) %>%
+      bind_rows(
+        tableau_filtre_N0 %>%
+          filter(time_t == j + 1)
+      ) %>%
+      select(company) %>%
+      unique() %>% 
+      count() %>%
+      rename(Ft = n) %>%
+      mutate(time_t = j,
+             time_t1 = j+1,
+             N0 = N0[i])
+    
+    tabletableau_Ft_N0 <- tabletableau_Ft_N0 %>%
+      bind_rows(tableau_intermediaire)
+  }
+  
+  print(i)
+  
+  tableau_flux <- tableau_flux %>%
+    bind_rows(tabletableau_Ft_N0)
+  
+}
+
+# output 
+write.csv(x = tableau_flux, file = "outputs_data/ft_proba_fortune500.csv", row.names = FALSE)
+
+# output of Ft
+Flux_fortune500 <- tableau_flux %>%
+  mutate(Ft_proba = (Ft-N0)/N0,
+         N = 2285) %>%
+  group_by(N0, N) %>%
+  summarise(Ft_proba = mean(Ft_proba))
+
+write.csv(x = Flux_fortune500, file = "outputs_data/Flux_mean_t_proba_fortune500.csv", row.names = FALSE)
+
+#### fortune500 visu/outputs ####
+# visu of F as mean of Ft
+Flux_fortune500 %>%
+  ggplot(aes(x = N0/N, y = Ft_proba)) +
+  geom_line() +
+  theme_bw() +
+  scale_x_continuous(name = TeX(r"($N_{0}/N$)")) +
+  ylab(TeX(r"($F$)")) +
+  labs(caption = "J. Gravier, 2023. Data: Fortune500", title = "Mean rank flux - top 100")
+
+ggsave(filename = "rank_flux_normalized_fortune500.png", plot = last_plot(), 
+       width = 18, height = 12, units = 'cm')
