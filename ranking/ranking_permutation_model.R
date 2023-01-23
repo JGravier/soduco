@@ -11,7 +11,8 @@ set.seed(2123)
 # permutation t-1, t = a(1-a)
 diff_proba <- seq(0.01, 0.99, 0.05)
 jump_proba <- 1-diff_proba
-perm_proba <- diff_proba*jump_proba
+# perm_proba <- diff_proba*jump_proba
+perm_proba <- seq(0.001, 0.25, 0.0249)
 
 #### system of size 1000 on 10 times
 N0 <- seq(1, 1000, 1)
@@ -185,8 +186,10 @@ write.csv(x = tableau_flux,
           row.names = FALSE)
 
 write.csv(x = Ft, 
-          file = "outputs_data/Flux_proba_jumpdiffmodel_size1000_t10_p20.csv", 
+          file = "outputs_data/Flux_mean_t_jumpdiffmodel_size1000_t10_p20.csv", 
           row.names = FALSE)
+
+
 
 #### visual analytics ####
 diff_proba <- seq(0.01, 0.99, 0.05)
@@ -207,13 +210,13 @@ visuproba %>%
 ggsave(filename = "proba_2nd_model.png", plot = last_plot(), width = 15, height = 10, units = 'cm')
 
 # data output
-jumpdiffmodel <- read.csv(file = "outputs_data/o_t_jumpdiffmodel_size1000_t10_p20.csv") %>%
+jumpdiffmodel <- read.csv(file = "outputs_data/o_t_jumpdiffmodel_size1000_t10_p11_v2.csv") %>%
   as_tibble()
 
 # Ot
 jumpdiffmodel %>%
-  mutate(Ot = Nt/N0) %>%
-  ggplot(aes(x = time_t, y = Ot, color = N0, group = N0)) +
+  mutate(Ot = Nt/N0,N=1000) %>%
+  ggplot(aes(x = time_t, y = Ot, color = N0/N, group = N0/N)) +
   scale_color_viridis_c(option = "C") +
   geom_line() +
   theme_bw() +
@@ -221,7 +224,7 @@ jumpdiffmodel %>%
   scale_y_continuous(name = TeX(r"($O_{t}$)"), breaks = seq(1,10,1)) +
   labs(caption = "J. Gravier, 2022", 
        title = "Rank turnover", subtitle = "N=1000, t=10, facetting is P(P)") +
-  facet_wrap(~round(proba,4))
+  facet_wrap(~round(proba,3))
 
 ggsave(filename = "rank_turnover_2nd_models.png", plot = last_plot(), width = 25, height = 18, units = 'cm')
 
@@ -230,7 +233,7 @@ jumpdiffmodel %>%
   mutate(Ot = Nt/N0) %>%
   filter(time_t %in% c(1, 10)) %>%
   mutate(time_t = paste0("t_", time_t)) %>%
-  mutate(proba2 = as.character(round(proba,4))) %>%
+  mutate(proba2 = as.character(round(proba,3))) %>%
   pivot_wider(id_cols = c(N0, proba2, proba), names_from = time_t, values_from = Ot) %>%
   mutate(o_point = (t_10 - t_1)/10) %>%
   ggplot(aes(x = N0/1000, y = o_point, color = proba, group = factor(proba))) +

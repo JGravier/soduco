@@ -5,7 +5,7 @@ library(ggrepel)
 
 
 #### permutation model ####
-o_t_model <- read.csv(file = "outputs_data/o_t_jumpdiffmodel_size1000_t10_p20.csv") %>%
+o_t_model <- read.csv(file = "outputs_data/o_t_jumpdiffmodel_size1000_t10_p11_v2.csv") %>%
   as_tibble()
 
 o_point_model <- o_t_model %>%
@@ -15,7 +15,7 @@ o_point_model <- o_t_model %>%
   pivot_wider(id_cols = c(N0, proba, N), names_from = time_t, values_from = Ot) %>%
   mutate(o_point = (t_10 - t_1)/10)
 
-flux_proba_model <- read.csv(file = "outputs_data/Flux_mean_t_jumpdiffmodel_size1000_t10_p20.csv", stringsAsFactors = FALSE) %>%
+flux_proba_model <- read.csv(file = "outputs_data/Flux_mean_t_jumpdiffmodel_size1000_t10_p11_v2.csv", stringsAsFactors = FALSE) %>%
   as_tibble() %>%
   mutate(N=1000)
 
@@ -166,7 +166,7 @@ ggscatter(data = o_f_data_model,
   xlab(TeX(r"($F$)")) +
   ylab(TeX(r"($\dot{O}$)")) +
   labs(caption = "J. Gravier, 2023") +
-  facet_wrap(~round(proba,4), scales = "free")
+  facet_wrap(~round(proba,3), scales = "free")
 
 ggsave(filename = "F_O_point_N0onN_comparing_modeldiffjump.png", plot = last_plot(),
        width = 23, height = 20, units = 'cm')
