@@ -13,29 +13,23 @@ jump_function <- function(vector_entry, sizeN) {
     vector_init <- list_vectors[[i]]
     rank_init <- list_vectors[[i]]
     vector_output <- list_vectors[[i]]
-    rank_output <- list_vectors[[i]]
+    posinvec_init <- which(vector_init %in% s_init[i])
+    posinvec_ouput <- which(vector_init %in% s_jump_output[i])
     
     if (s_init[i] == s_jump_output[i]) {
       ############### do nothing
     } else if (which(vector_init %in% s_jump_output[i]) - which(vector_init %in% s_init[i]) == 1) { # if position output - input = 1
       # is the case when next one to each other but output is > than input
-      posinvec_init <- which(vector_init %in% s_init[i])
-      posinvec_ouput <- which(vector_init %in% s_jump_output[i])
       # do > permutation
       vector_init[posinvec_ouput] <- s_init[i]
       vector_init[posinvec_init] <- s_jump_output[i]
       
     } else if (which(vector_init %in% s_init[i]) - which(vector_init %in% s_jump_output[i]) == 1) {# inverse
-      posinvec_init <- which(vector_init %in% s_init[i])
-      posinvec_ouput <- which(vector_init %in% s_jump_output[i])
       # do > permutation
       vector_init[posinvec_ouput] <- s_init[i]
       vector_init[posinvec_init] <- s_jump_output[i]
       
     } else {
-      posinvec_init <- which(vector_init %in% s_init[i])
-      posinvec_ouput <- which(vector_init %in% s_jump_output[i])
-      
       mininvec <- min(posinvec_init, posinvec_ouput)
       maxinvec <- max(posinvec_init, posinvec_ouput)
       
@@ -43,14 +37,12 @@ jump_function <- function(vector_entry, sizeN) {
       if (posinvec_ouput < posinvec_init) {
         maxinvecrevu <- maxinvec-1
         j <- vector_init[mininvec:maxinvecrevu]
-        rank_output[mininvec:maxinvecrevu] <- j + 1
         minvec2 <- mininvec+1
         maxinvecrevu2 <- maxinvecrevu+1
         vector_output[minvec2:maxinvecrevu2] <- j 
       } else {
         mininvecrevu <- mininvec+1
         j <- vector_init[mininvecrevu:maxinvec]
-        rank_output[mininvecrevu:maxinvec] <- j - 1
         mininvecrevu2 <- mininvecrevu-1
         maxinvec2 <- maxinvec-1
         vector_output[mininvecrevu2:maxinvec2] <- j 
@@ -63,7 +55,6 @@ jump_function <- function(vector_entry, sizeN) {
       if (posinvec_ouput < posinvec_init) {
         mininvecrevu <- mininvec+1
         vector_init[mininvecrevu:maxinvec] <- vector_output[mininvecrevu:maxinvec]
-        # rank_init[vector_init[mininvecrevu:maxinvec]]
       } else {
         maxinvecrevu <- maxinvec-1
         vector_init[mininvec:maxinvecrevu] <- vector_output[mininvec:maxinvecrevu]
@@ -81,6 +72,7 @@ jump_function <- function(vector_entry, sizeN) {
   return(vector_final)
   
 }
+
 
 jump_diff_model_vectors <- function(vectorbase, PS, size) {
   
