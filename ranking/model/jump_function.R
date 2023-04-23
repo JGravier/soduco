@@ -1,5 +1,3 @@
-library(data.table)
-
 jump_function <- function(vector_entry, sizeN) {
   
   list_vectors <- list()
@@ -73,8 +71,7 @@ jump_function <- function(vector_entry, sizeN) {
   
 }
 
-
-jump_diff_model_vectors <- function(vectorbase, PS, size) {
+jump_function_baser <- function(vectorbase, PS, size) {
   
   # initi
   vector_output <- vectorbase
@@ -86,7 +83,57 @@ jump_diff_model_vectors <- function(vectorbase, PS, size) {
   
   vector_output[sampling_output] <- vector_output[sampling_init]
   
-  vector_output <- data.rable::frank(x = vector_output, ties.method = "last")
+  vector_output <- frank(x = vector_output, ties.method = "last")
   
   return(vector_output)
+}
+
+data_jump_result <- function(vec, size_c, timesT){
+  
+  liste_size_choicing <- list()
+  
+  for (s in 1:length(size_choice)) {
+    
+    liste_outputs <- list()
+    liste_outputs[[1]] <- vector_init
+    
+    for (l in 1:length(times)) {
+      liste_outputs[[l+1]] <- jump_function(vector_entry = liste_outputs[[l]], sizeN = size_choice[s])
+    }
+    
+    liste_size_choicing[[s]] <- liste_outputs
+    
+  }
+  
+  # output as tibble
+  tible_result <- tibble(id_unique = numeric(), probaS = numeric(), snapshot_time = numeric())
+  
+  vreplace <- length(times) + 1
+  vreplace <- paste0("V", vreplace)
+  
+  for (l in 1:length(x = liste_size_choicing)) {
+    
+    tible_result_inter <- as.data.frame(do.call(cbind, liste_size_choicing[[l]])) %>%
+      as_tibble() %>%
+      pivot_longer(cols = V1:all_of(vreplace), names_to = "V", values_to = "id_unique") %>%
+      arrange(V) %>%
+      select(-V)
+    
+    tible_result_inter$snapshot_time <- c(0, rep(1:(nrow(tible_result_inter)-1) %/% 100)) + 1
+    
+    tible_result <- tible_result %>%
+      bind_rows(
+        tible_result_inter %>% 
+          mutate(probaS = 1, 
+                 size_N0_N = size_choice[l])
+      )
+    
+  }
+  
+  tible_result <- tible_result %>%
+    group_by(snapshot_time, size_N0_N) %>%
+    mutate(rank = row_number())
+  
+  return(tible_result)
+  
 }
